@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import AuthorDashboard from "@/components/author/AuthorDashboard";
+import AuthorSidebar from "@/components/author/AuthorSidebar";
 
 export const dynamic = "force-dynamic";
 
@@ -68,9 +69,12 @@ export default async function Page() {
   return (
     <>
       <Header />
-      <main className="flex-1 min-h-screen bg-[#141210] py-8">
-        <AuthorDashboard initialNovels={novels} author={author} />
-      </main>
+      <div className="flex flex-col md:flex-row min-h-screen bg-[#141210]">
+        <AuthorSidebar activeTab="novels" />
+        <main className="flex-1 p-4 md:p-8">
+          <AuthorDashboard initialNovels={novels} author={author} />
+        </main>
+      </div>
       <Footer />
     </>
   );
