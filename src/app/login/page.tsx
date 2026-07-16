@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import AuthLayout from "@/components/auth/AuthLayout";
 import LoginForm from "@/components/auth/LoginForm";
@@ -17,7 +17,9 @@ export default function LoginPage() {
       footerLinkText="สมัครสมาชิก"
       footerLinkHref="/register"
     >
-      <LoginForm />
+      <Suspense fallback={<div className="text-white/40 text-xs py-8 text-center">กำลังโหลด...</div>}>
+        <LoginForm />
+      </Suspense>
     </AuthLayout>
   );
 }
