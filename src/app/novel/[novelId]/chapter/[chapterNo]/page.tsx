@@ -49,7 +49,6 @@ export default async function ChapterPage({ params }: PageProps) {
     .select(
       `
       *,
-      chapter_content(content),
       novel:novel_id (
         novel_id,
         novel_name,
@@ -145,7 +144,7 @@ export default async function ChapterPage({ params }: PageProps) {
     novel_id: chapterData.novel_id,
     chapter_no: chapterData.chapter_no,
     chapter_title: chapterData.chapter_title,
-    content: (chapterData as any).chapter_content?.content || chapterData.content || "",
+    content: chapterData.content || "",
     view_count: chapterData.view_count,
     published_at: chapterData.published_at,
   };

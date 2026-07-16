@@ -90,7 +90,7 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
     try {
       let currentChapterId = activeChapterId;
 
-      // 1. Upsert Chapter metadata
+      // 1. Upsert Chapter metadata & content
       if (currentChapterId === null) {
         const { data, error } = await supabase
           .from("chapter")
@@ -100,6 +100,7 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
             chapter_title: title.trim() || `ตอนที่ ${chapterNo}`,
             status: "draft",
             published_at: null,
+            content: content,
           })
           .select("chapter_id")
           .single();
@@ -120,22 +121,12 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
           .update({
             chapter_title: title.trim() || `ตอนที่ ${chapterNo}`,
             status: "draft",
+            content: content,
           })
           .eq("chapter_id", currentChapterId);
 
         if (error) throw error;
       }
-
-      // 2. Upsert Chapter text content
-      const { error: contentError } = await supabase
-        .from("chapter_content")
-        .upsert({
-          chapter_id: currentChapterId,
-          content: content,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (contentError) throw contentError;
 
       // 3. Bump novel updated_at so the dashboard reflects the latest edit time
       await supabase
@@ -167,7 +158,7 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
     let currentChapterId = activeChapterId;
 
     try {
-      // 1. Ensure chapter meta exists (if not saved as draft yet)
+      // 1. Ensure chapter exists (if not saved as draft yet)
       if (currentChapterId === null) {
         const { data, error } = await supabase
           .from("chapter")
@@ -176,6 +167,7 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
             chapter_no: chapterNo,
             chapter_title: title.trim() || `ตอนที่ ${chapterNo}`,
             status: "draft",
+            content: content,
           })
           .select("chapter_id")
           .single();
@@ -185,18 +177,7 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
         setActiveChapterId(data.chapter_id);
       }
 
-      // 2. Save current content
-      const { error: contentError } = await supabase
-        .from("chapter_content")
-        .upsert({
-          chapter_id: currentChapterId,
-          content: content,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (contentError) throw contentError;
-
-      // 3. Update status & publish dates
+      // 3. Update status, publish dates & content
       const isSchedule = publishType === "schedule";
       const scheduledTime = isSchedule ? new Date(scheduleDate).toISOString() : null;
 
@@ -207,6 +188,7 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
           status: isSchedule ? "scheduled" : "published",
           published_at: isSchedule ? null : new Date().toISOString(),
           scheduled_at: scheduledTime,
+          content: content,
         })
         .eq("chapter_id", currentChapterId);
 

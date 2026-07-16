@@ -64,8 +64,7 @@ export default async function Page({ params }: PageProps) {
   const { data: chapterData, error } = await supabase
     .from("chapter")
     .select(`
-      *,
-      chapter_content (content)
+      *
     `)
     .eq("chapter_id", cid)
     .maybeSingle();
@@ -83,7 +82,7 @@ export default async function Page({ params }: PageProps) {
     chapter_id: chapterData.chapter_id,
     chapter_no: chapterData.chapter_no,
     chapter_title: chapterData.chapter_title,
-    content: (chapterData as any).chapter_content?.content || chapterData.content || "",
+    content: chapterData.content || "",
     status: chapterData.status as "draft" | "published" | "scheduled",
     scheduled_at: chapterData.scheduled_at,
   };
