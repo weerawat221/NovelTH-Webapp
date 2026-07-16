@@ -12,7 +12,7 @@ import {
   TrendingUp, 
   Filter 
 } from "lucide-react";
-import Image from "next/image";
+
 
 interface NovelStats {
   novel_id: number;
@@ -183,12 +183,10 @@ export default function AuthorStatsClient({ novels, chapters }: AuthorStatsClien
                       <td className="py-3.5 px-4 font-medium text-stone-100 flex items-center gap-3">
                         <div className="relative h-10 w-8 rounded overflow-hidden bg-stone-800 shrink-0 border border-stone-800/40">
                           {novel.cover_image ? (
-                            <Image
+                            <img
                               src={novel.cover_image}
                               alt={novel.novel_name}
-                              fill
-                              sizes="32px"
-                              className="object-cover"
+                              className="w-full h-full object-cover"
                             />
                           ) : (
                             <div className="h-full w-full flex items-center justify-center text-[8px] text-stone-500">
