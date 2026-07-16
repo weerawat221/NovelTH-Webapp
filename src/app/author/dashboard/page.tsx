@@ -32,7 +32,7 @@ export default async function Page() {
     redirect("/?error=author_pending");
   }
 
-  // Fetch novels with category, chapters, and visit_log
+  // Fetch novels with category, chapters, and view_count
   const { data: novelsData, error } = await supabase
     .from("novel")
     .select(`
@@ -44,7 +44,7 @@ export default async function Page() {
       category_id,
       category:category_id (category_name),
       chapter (chapter_id),
-      visit_log (visit_id)
+      view_count
     `)
     .eq("author_id", author.author_id)
     .order("updated_at", { ascending: false });
@@ -62,7 +62,7 @@ export default async function Page() {
     category_id: n.category_id,
     category_name: n.category?.category_name || "ทั่วไป",
     total_chapters: n.chapter?.length || 0,
-    total_views: n.visit_log?.length || 0,
+    total_views: n.view_count || 0,
   }));
 
   return (
