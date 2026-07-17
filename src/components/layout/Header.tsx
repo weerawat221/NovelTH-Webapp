@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Bell,
   Shield,
+  History,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -412,6 +413,14 @@ function HeaderInner() {
                       <User className="h-3.5 w-3.5 text-muted" />
                       <span>ตั้งค่าโปรไฟล์</span>
                     </Link>
+                    <Link
+                      href="/reading-history"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-surface-hover transition-colors"
+                    >
+                      <History className="h-3.5 w-3.5 text-muted" />
+                      <span>ประวัติการอ่าน</span>
+                    </Link>
                     {isAdmin && (
                       <Link
                         href="/admin"
@@ -617,13 +626,22 @@ function HeaderInner() {
               </MobileNavLink>
             )}
             {authUser && (
-              <MobileNavLink
-                href="/profile"
-                icon={<User className="h-4 w-4" />}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                ตั้งค่าโปรไฟล์
-              </MobileNavLink>
+              <>
+                <MobileNavLink
+                  href="/profile"
+                  icon={<User className="h-4 w-4" />}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  ตั้งค่าโปรไฟล์
+                </MobileNavLink>
+                <MobileNavLink
+                  href="/reading-history"
+                  icon={<History className="h-4 w-4" />}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  ประวัติการอ่าน
+                </MobileNavLink>
+              </>
             )}
             {!authUser && (
               <Link
