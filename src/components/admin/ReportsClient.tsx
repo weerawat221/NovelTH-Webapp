@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   X,
   RotateCcw,
+  ChevronDown,
 } from "lucide-react";
 import {
   LineChart,
@@ -403,10 +404,10 @@ export default function ReportsClient() {
   return (
     <div className="space-y-6">
       {/* Top Title & Date Range */}
-      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5 bg-[#171513]/60 border border-white/5 p-6 rounded-2xl">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5 bg-surface border border-border p-6 rounded-2xl shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white">รายงานวิเคราะห์ระบบ</h1>
-          <p className="text-xs text-white/35 mt-1">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-foreground">รายงานวิเคราะห์ระบบ</h1>
+          <p className="text-xs text-muted mt-1">
             ดูสถิติและรายงานเชิงลึกเกี่ยวกับการตอบรับและยอดเข้าใช้งานระบบของ NovelTH
           </p>
         </div>
@@ -414,8 +415,8 @@ export default function ReportsClient() {
         {/* Date Filters Form */}
         {activeTab !== "monthly" && activeTab !== "yearly" && (
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-white/20" />
+            <div className="relative flex items-center">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
               <input
                 type="date"
                 value={startDate}
@@ -424,20 +425,23 @@ export default function ReportsClient() {
                   setStartDate(val);
                   updateQueryParams({ start: val });
                 }}
-                className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none transition-colors"
+                className="appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-9 pr-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-auto"
               />
             </div>
-            <span className="text-white/20 text-xs">ถึง</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => {
-                const val = e.target.value;
-                setEndDate(val);
-                updateQueryParams({ end: val });
-              }}
-              className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none transition-colors"
-            />
+            <span className="text-muted text-xs">ถึง</span>
+            <div className="relative flex items-center">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEndDate(val);
+                  updateQueryParams({ end: val });
+                }}
+                className="appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-9 pr-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-auto"
+              />
+            </div>
             <button
               onClick={() => {
                 setStartDate(defaultDaily.start);
@@ -445,7 +449,7 @@ export default function ReportsClient() {
                 updateQueryParams({ start: defaultDaily.start, end: defaultDaily.end });
               }}
               disabled={startDate === defaultDaily.start && endDate === defaultDaily.end}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-white/5 bg-white/5 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:text-white/60 cursor-pointer disabled:cursor-not-allowed transition-all"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl border border-border bg-surface text-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-muted cursor-pointer disabled:cursor-not-allowed transition-all shadow-sm"
               title="คืนค่าเริ่มต้น"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -456,25 +460,28 @@ export default function ReportsClient() {
 
         {/* Monthly report target month selector */}
         {activeTab === "monthly" && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-white/40 font-bold">เลือกเดือนเป้าหมาย:</span>
-            <input
-              type="month"
-              value={targetMonth}
-              onChange={(e) => {
-                const val = e.target.value;
-                setTargetMonth(val);
-                updateQueryParams({ month: val });
-              }}
-              className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none"
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs text-muted font-bold">เลือกเดือนเป้าหมาย:</span>
+            <div className="relative flex items-center">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+              <input
+                type="month"
+                value={targetMonth}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTargetMonth(val);
+                  updateQueryParams({ month: val });
+                }}
+                className="appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-9 pr-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-auto"
+              />
+            </div>
             <button
               onClick={() => {
                 setTargetMonth(defaultMonth);
                 updateQueryParams({ month: defaultMonth });
               }}
               disabled={targetMonth === defaultMonth}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-white/5 bg-white/5 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:text-white/60 cursor-pointer disabled:cursor-not-allowed transition-all"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl border border-border bg-surface text-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-muted cursor-pointer disabled:cursor-not-allowed transition-all shadow-sm"
               title="คืนค่าเริ่มต้น"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -485,30 +492,33 @@ export default function ReportsClient() {
 
         {/* Yearly report target year selector */}
         {activeTab === "yearly" && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-white/40 font-bold">เลือกปีเป้าหมาย:</span>
-            <select
-              value={targetYear}
-              onChange={(e) => {
-                const val = e.target.value;
-                setTargetYear(Number(val));
-                updateQueryParams({ year: val });
-              }}
-              className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none"
-            >
-              {availableYears.map((yr) => (
-                <option key={yr} value={yr}>
-                  พ.ศ. {yr + 543}
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs text-muted font-bold">เลือกปีเป้าหมาย:</span>
+            <div className="relative flex items-center">
+              <select
+                value={targetYear}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTargetYear(Number(val));
+                  updateQueryParams({ year: val });
+                }}
+                className="appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-3.5 pr-9 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-auto"
+              >
+                {availableYears.map((yr) => (
+                  <option key={yr} value={yr}>
+                    พ.ศ. {yr + 543}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+            </div>
             <button
               onClick={() => {
                 setTargetYear(defaultYear);
                 updateQueryParams({ year: String(defaultYear) });
               }}
               disabled={targetYear === defaultYear}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-white/5 bg-white/5 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:text-white/60 cursor-pointer disabled:cursor-not-allowed transition-all"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl border border-border bg-surface text-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-muted cursor-pointer disabled:cursor-not-allowed transition-all shadow-sm"
               title="คืนค่าเริ่มต้น"
             >
               <RotateCcw className="h-3.5 w-3.5" />
