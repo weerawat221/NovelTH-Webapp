@@ -67,17 +67,44 @@ export default async function Page({ params }: PageProps) {
   // Cast properly
   const novel = novelData as NovelWithDetails;
 
-  // 2. Fetch all chapters for this novel
+  // 2. Auth, Favorite and Reading History
+  const { data: { user } } = await supabase.auth.getUser();
+  let isNovelAuthor = false;
+  let isSystemAdmin = false;
+
+  if (user) {
+    // Check admin
+    const { data: adminRole } = await supabase
+      .from("admin")
+      .select("admin_id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    if (adminRole) isSystemAdmin = true;
+
+    // Check author
+    const { data: authorProfile } = await supabase
+      .from("author")
+      .select("author_id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    if (authorProfile && authorProfile.author_id === novel.author_id) {
+      isNovelAuthor = true;
+    }
+  }
+
+  // 3. Fetch chapters for this novel
   const { data: chaptersData } = await supabase
     .from("chapter")
-    .select("chapter_id, chapter_no, chapter_title, published_at")
+    .select("chapter_id, chapter_no, chapter_title, published_at, status, scheduled_at")
     .eq("novel_id", nid)
     .order("chapter_no", { ascending: true });
 
-  const chapters: ChapterListItem[] = chaptersData || [];
+  const rawChapters = chaptersData || [];
+  const chapters: ChapterListItem[] = rawChapters.filter((c: any) => {
+    if (isNovelAuthor || isSystemAdmin) return true;
+    return c.status === "published";
+  });
 
-  // 3. Auth, Favorite and Reading History
-  const { data: { user } } = await supabase.auth.getUser();
   let initialFavorited = false;
   let lastReadChapterNo: number | null = null;
 

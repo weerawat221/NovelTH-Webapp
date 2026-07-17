@@ -82,14 +82,51 @@ export default async function ChapterPage({ params }: PageProps) {
   const novel = chapterData.novel as any;
   const author = novel?.author;
 
+  // 1.5 Check Auth permissions (author / admin) for draft viewing
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let isNovelAuthor = false;
+  let isSystemAdmin = false;
+
+  if (user) {
+    // Check admin
+    const { data: adminRole } = await supabase
+      .from("admin")
+      .select("admin_id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    if (adminRole) isSystemAdmin = true;
+
+    // Check if user is the author
+    const { data: authorProfile } = await supabase
+      .from("author")
+      .select("author_id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    if (authorProfile && authorProfile.author_id === novel?.author_id) {
+      isNovelAuthor = true;
+    }
+  }
+
+  // Block draft / scheduled chapters for normal readers
+  if (chapterData.status !== "published" && !isNovelAuthor && !isSystemAdmin) {
+    notFound();
+  }
+
   // 2. Fetch all chapters of this novel (lightweight)
   const { data: allChapters } = await supabase
     .from("chapter")
-    .select("chapter_id, chapter_no, chapter_title")
+    .select("chapter_id, chapter_no, chapter_title, status, scheduled_at")
     .eq("novel_id", nid)
     .order("chapter_no", { ascending: true });
 
-  const chapters: ChapterListItem[] = allChapters || [];
+  const rawAllChapters = allChapters || [];
+  const chapters: ChapterListItem[] = rawAllChapters.filter((c: any) => {
+    if (isNovelAuthor || isSystemAdmin) return true;
+    return c.status === "published";
+  });
 
   // 3. Determine prev/next
   const currentIdx = chapters.findIndex((c) => c.chapter_no === cno);
@@ -102,10 +139,6 @@ export default async function ChapterPage({ params }: PageProps) {
     nextChapterNo !== null ? chapters[currentIdx + 1].chapter_title : null;
 
   // 5. Log reading history (if user is logged in)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   if (user) {
     const { data: userData } = await supabase
       .from("users")
