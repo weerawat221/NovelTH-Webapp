@@ -16,6 +16,7 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
+  RotateCcw,
 } from "lucide-react";
 import {
   LineChart,
@@ -116,6 +117,26 @@ function fillMissingMonths(data: any[]) {
   return filled;
 }
 
+function getDefaultDailyRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  
+  const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
+  const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+  
+  return { start: startStr, end: endStr };
+}
+
+function getDefaultMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getDefaultYear() {
+  return new Date().getFullYear();
+}
+
 const COLORS = ["#e09050", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6"];
 
 export default function ReportsClient() {
@@ -123,20 +144,17 @@ export default function ReportsClient() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const today = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(today.getDate() - 30);
-
-  const todayStr = today.toISOString().split("T")[0];
-  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
-  const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`; // e.g. "2026-07"
+  // Helper defaults
+  const defaultDaily = useMemo(() => getDefaultDailyRange(), []);
+  const defaultMonth = useMemo(() => getDefaultMonth(), []);
+  const defaultYear = useMemo(() => getDefaultYear(), []);
 
   // Local States for Filters (initialized from searchParams if available, or fallbacks)
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
-  const [startDate, setStartDate] = useState(searchParams.get("start") || thirtyDaysAgoStr);
-  const [endDate, setEndDate] = useState(searchParams.get("end") || todayStr);
-  const [targetYear, setTargetYear] = useState(Number(searchParams.get("year")) || today.getFullYear());
-  const [targetMonth, setTargetMonth] = useState(searchParams.get("month") || currentMonthStr);
+  const [startDate, setStartDate] = useState(searchParams.get("start") || defaultDaily.start);
+  const [endDate, setEndDate] = useState(searchParams.get("end") || defaultDaily.end);
+  const [targetYear, setTargetYear] = useState(Number(searchParams.get("year")) || defaultYear);
+  const [targetMonth, setTargetMonth] = useState(searchParams.get("month") || defaultMonth);
 
   // Loading & Data States
   const [loading, setLoading] = useState(true);
@@ -181,26 +199,26 @@ export default function ReportsClient() {
       updated = true;
     }
     if (!params.has("start")) {
-      params.set("start", thirtyDaysAgoStr);
+      params.set("start", defaultDaily.start);
       updated = true;
     }
     if (!params.has("end")) {
-      params.set("end", todayStr);
+      params.set("end", defaultDaily.end);
       updated = true;
     }
     if (!params.has("year")) {
-      params.set("year", String(new Date().getFullYear()));
+      params.set("year", String(defaultYear));
       updated = true;
     }
     if (!params.has("month")) {
-      params.set("month", currentMonthStr);
+      params.set("month", defaultMonth);
       updated = true;
     }
 
     if (updated) {
       router.replace(`${window.location.pathname}?${params.toString()}`);
     }
-  }, []);
+  }, [defaultDaily, defaultMonth, defaultYear]);
 
   // 2. Synchronize URL changes to local states (handles manual URL entry or Back/Forward browser navigation)
   useEffect(() => {
@@ -420,6 +438,19 @@ export default function ReportsClient() {
               }}
               className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none transition-colors"
             />
+            <button
+              onClick={() => {
+                setStartDate(defaultDaily.start);
+                setEndDate(defaultDaily.end);
+                updateQueryParams({ start: defaultDaily.start, end: defaultDaily.end });
+              }}
+              disabled={startDate === defaultDaily.start && endDate === defaultDaily.end}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-white/5 bg-white/5 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:text-white/60 cursor-pointer disabled:cursor-not-allowed transition-all"
+              title="คืนค่าเริ่มต้น"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>รีเซ็ต</span>
+            </button>
           </div>
         )}
 
@@ -437,6 +468,18 @@ export default function ReportsClient() {
               }}
               className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none"
             />
+            <button
+              onClick={() => {
+                setTargetMonth(defaultMonth);
+                updateQueryParams({ month: defaultMonth });
+              }}
+              disabled={targetMonth === defaultMonth}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-white/5 bg-white/5 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:text-white/60 cursor-pointer disabled:cursor-not-allowed transition-all"
+              title="คืนค่าเริ่มต้น"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>รีเซ็ต</span>
+            </button>
           </div>
         )}
 
@@ -459,6 +502,18 @@ export default function ReportsClient() {
                 </option>
               ))}
             </select>
+            <button
+              onClick={() => {
+                setTargetYear(defaultYear);
+                updateQueryParams({ year: String(defaultYear) });
+              }}
+              disabled={targetYear === defaultYear}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-white/5 bg-white/5 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:text-white/60 cursor-pointer disabled:cursor-not-allowed transition-all"
+              title="คืนค่าเริ่มต้น"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>รีเซ็ต</span>
+            </button>
           </div>
         )}
       </div>
