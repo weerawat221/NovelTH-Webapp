@@ -68,6 +68,54 @@ function exportToCSV(filename: string, headers: string[], rows: (string | number
   document.body.removeChild(link);
 }
 
+function fillMissingDates(data: any[], startStr: string, endStr: string) {
+  const filled = [];
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+
+  const dataMap = new Map();
+  if (Array.isArray(data)) {
+    data.forEach((item) => {
+      const dateKey = new Date(item.visit_day).toISOString().split("T")[0];
+      dataMap.set(dateKey, item);
+    });
+  }
+
+  const current = new Date(start);
+  while (current <= end) {
+    const dateKey = current.toISOString().split("T")[0];
+    if (dataMap.has(dateKey)) {
+      filled.push(dataMap.get(dateKey));
+    } else {
+      filled.push({
+        visit_day: dateKey,
+        visit_count: 0,
+        unique_count: 0,
+      });
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return filled;
+}
+
+function fillMissingMonths(data: any[]) {
+  const filled = [];
+  const dataMap = new Map();
+  if (Array.isArray(data)) {
+    data.forEach((item) => {
+      dataMap.set(Number(item.visit_month), Number(item.visit_count));
+    });
+  }
+  for (let m = 1; m <= 12; m++) {
+    filled.push({
+      visit_month: m,
+      visit_count: dataMap.get(m) || 0,
+    });
+  }
+  return filled;
+}
+
 const COLORS = ["#e09050", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6"];
 
 export default function ReportsClient() {
@@ -173,52 +221,56 @@ export default function ReportsClient() {
     async function loadReport() {
       setLoading(true);
       try {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-
-        const startISO = start.toISOString();
-        const endISO = end.toISOString();
+        // Convert to local YYYY-MM-DD HH:mm:ss format
+        const startStr = `${startDate} 00:00:00`;
+        const endStr = `${endDate} 23:59:59.999`;
 
         if (activeTab === "overview") {
-          const data = await getReportTotalVisits(startISO, endISO);
+          const data = await getReportTotalVisits(startStr, endStr);
           setReportData(data);
         } else if (activeTab === "daily") {
-          const data = await getReportVisitsByDay(startISO, endISO);
-          setReportData(data);
+          const data = await getReportVisitsByDay(startStr, endStr);
+          const filledData = fillMissingDates(data, startDate, endDate);
+          setReportData(filledData);
         } else if (activeTab === "monthly") {
           const [yrStr, moStr] = targetMonth.split("-");
           const yr = parseInt(yrStr, 10);
           const mo = parseInt(moStr, 10) - 1;
 
-          const startOfMonth = new Date(yr, mo, 1, 0, 0, 0, 0);
-          const endOfMonth = new Date(yr, mo + 1, 0, 23, 59, 59, 999);
+          // Start & End of month in YYYY-MM-DD format
+          const lastDay = new Date(yr, mo + 1, 0).getDate();
+          const startOfMonthStr = `${yr}-${String(mo + 1).padStart(2, "0")}-01 00:00:00`;
+          const endOfMonthStr = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")} 23:59:59.999`;
 
-          const startOfPrevMonth = new Date(yr, mo - 1, 1, 0, 0, 0, 0);
-          const endOfPrevMonth = new Date(yr, mo, 0, 23, 59, 59, 999);
+          const startOfPrevMonth = new Date(yr, mo - 1, 1);
+          const lastDayPrev = new Date(yr, mo, 0).getDate();
+          const startOfPrevMonthStr = `${startOfPrevMonth.getFullYear()}-${String(startOfPrevMonth.getMonth() + 1).padStart(2, "0")}-01 00:00:00`;
+          const endOfPrevMonthStr = `${startOfPrevMonth.getFullYear()}-${String(startOfPrevMonth.getMonth() + 1).padStart(2, "0")}-${String(lastDayPrev).padStart(2, "0")} 23:59:59.999`;
 
-          const dailyData = await getReportVisitsByDay(startOfMonth.toISOString(), endOfMonth.toISOString());
-          const currentTotal = await getReportTotalVisits(startOfMonth.toISOString(), endOfMonth.toISOString());
-          const prevTotal = await getReportTotalVisits(startOfPrevMonth.toISOString(), endOfPrevMonth.toISOString());
+          const dailyData = await getReportVisitsByDay(startOfMonthStr, endOfMonthStr);
+          const filledDaily = fillMissingDates(dailyData, `${yr}-${String(mo + 1).padStart(2, "0")}-01`, `${yr}-${String(mo + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`);
+          
+          const currentTotal = await getReportTotalVisits(startOfMonthStr, endOfMonthStr);
+          const prevTotal = await getReportTotalVisits(startOfPrevMonthStr, endOfPrevMonthStr);
 
           setReportData({
-            daily: dailyData,
+            daily: filledDaily,
             total_visits: currentTotal.total_visits || 0,
             prev_total_visits: prevTotal.total_visits || 0,
           });
         } else if (activeTab === "yearly") {
           const monthlyData = await getReportVisitsByMonth(targetYear);
-          const totalVisits = monthlyData.reduce((sum: number, item: any) => sum + Number(item.visit_count), 0);
+          const filledMonthly = fillMissingMonths(monthlyData);
+          const totalVisits = filledMonthly.reduce((sum: number, item: any) => sum + Number(item.visit_count), 0);
           setReportData({
-            monthly: monthlyData,
+            monthly: filledMonthly,
             total_visits: totalVisits,
           });
         } else if (activeTab === "category") {
-          const data = await getReportVisitsByCategory(startISO, endISO);
+          const data = await getReportVisitsByCategory(startStr, endStr);
           setReportData(data);
         } else if (activeTab === "author") {
-          const data = await getReportVisitsByAuthor(startISO, endISO);
+          const data = await getReportVisitsByAuthor(startStr, endStr);
           setReportData(data);
         }
       } catch (err: any) {
@@ -238,12 +290,10 @@ export default function ReportsClient() {
     setLoadingAuthorNovels(true);
 
     try {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      const startStr = `${startDate} 00:00:00`;
+      const endStr = `${endDate} 23:59:59.999`;
 
-      const breakdown = await getAuthorNovelsBreakdown(author.author_id, start.toISOString(), end.toISOString());
+      const breakdown = await getAuthorNovelsBreakdown(author.author_id, startStr, endStr);
       setAuthorNovels(breakdown);
     } catch (err) {
       console.error(err);
