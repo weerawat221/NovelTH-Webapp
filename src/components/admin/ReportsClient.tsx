@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Calendar,
   Download,
@@ -70,16 +71,24 @@ function exportToCSV(filename: string, headers: string[], rows: (string | number
 const COLORS = ["#e09050", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6"];
 
 export default function ReportsClient() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const today = new Date();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(today.getDate() - 30);
 
-  // Filter dates
-  const [startDate, setStartDate] = useState(thirtyDaysAgo.toISOString().split("T")[0]);
-  const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
+  const todayStr = today.toISOString().split("T")[0];
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
+  const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`; // e.g. "2026-07"
 
-  // Tab State
-  const [activeTab, setActiveTab] = useState("overview");
+  // URL Query States
+  const activeTab = searchParams.get("tab") || "overview";
+  const startDate = searchParams.get("start") || thirtyDaysAgoStr;
+  const endDate = searchParams.get("end") || todayStr;
+  const targetYear = Number(searchParams.get("year")) || today.getFullYear();
+  const targetMonth = searchParams.get("month") || currentMonthStr;
 
   // Loading & Data States
   const [loading, setLoading] = useState(true);
@@ -90,8 +99,29 @@ export default function ReportsClient() {
   const [authorNovels, setAuthorNovels] = useState<any[]>([]);
   const [loadingAuthorNovels, setLoadingAuthorNovels] = useState(false);
 
-  // Target Year for Monthly report
-  const [targetYear, setTargetYear] = useState(new Date().getFullYear());
+  // Helper to dynamically compile available years
+  const availableYears = useMemo(() => {
+    const years = [];
+    const currentYr = new Date().getFullYear();
+    const earliestYr = 2024;
+    for (let y = currentYr; y >= earliestYr; y--) {
+      years.push(y);
+    }
+    return years;
+  }, []);
+
+  // Update query params helper
+  const updateQueryParams = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   useEffect(() => {
     async function loadReport() {
@@ -106,27 +136,42 @@ export default function ReportsClient() {
         const endISO = end.toISOString();
 
         if (activeTab === "overview") {
-          // Fetch Report 1 (Total visits)
           const data = await getReportTotalVisits(startISO, endISO);
           setReportData(data);
         } else if (activeTab === "daily") {
-          // Fetch Report 2 (Daily visits)
           const data = await getReportVisitsByDay(startISO, endISO);
           setReportData(data);
         } else if (activeTab === "monthly") {
-          // Fetch Report 3 (Monthly visits)
-          const data = await getReportVisitsByMonth(targetYear);
-          setReportData(data);
+          const [yrStr, moStr] = targetMonth.split("-");
+          const yr = parseInt(yrStr, 10);
+          const mo = parseInt(moStr, 10) - 1;
+
+          const startOfMonth = new Date(yr, mo, 1, 0, 0, 0, 0);
+          const endOfMonth = new Date(yr, mo + 1, 0, 23, 59, 59, 999);
+
+          const startOfPrevMonth = new Date(yr, mo - 1, 1, 0, 0, 0, 0);
+          const endOfPrevMonth = new Date(yr, mo, 0, 23, 59, 59, 999);
+
+          const dailyData = await getReportVisitsByDay(startOfMonth.toISOString(), endOfMonth.toISOString());
+          const currentTotal = await getReportTotalVisits(startOfMonth.toISOString(), endOfMonth.toISOString());
+          const prevTotal = await getReportTotalVisits(startOfPrevMonth.toISOString(), endOfPrevMonth.toISOString());
+
+          setReportData({
+            daily: dailyData,
+            total_visits: currentTotal.total_visits || 0,
+            prev_total_visits: prevTotal.total_visits || 0,
+          });
         } else if (activeTab === "yearly") {
-          // Fetch Report 4 (Yearly visits)
-          const data = await getReportVisitsByYear();
-          setReportData(data);
+          const monthlyData = await getReportVisitsByMonth(targetYear);
+          const totalVisits = monthlyData.reduce((sum: number, item: any) => sum + Number(item.visit_count), 0);
+          setReportData({
+            monthly: monthlyData,
+            total_visits: totalVisits,
+          });
         } else if (activeTab === "category") {
-          // Fetch Report 5 (Visits by Category)
           const data = await getReportVisitsByCategory(startISO, endISO);
           setReportData(data);
         } else if (activeTab === "author") {
-          // Fetch Report 6 (Author Leaderboard)
           const data = await getReportVisitsByAuthor(startISO, endISO);
           setReportData(data);
         }
@@ -139,7 +184,7 @@ export default function ReportsClient() {
     }
 
     loadReport();
-  }, [activeTab, startDate, endDate, targetYear]);
+  }, [activeTab, startDate, endDate, targetYear, targetMonth]);
 
   // Load selected author novels breakdown
   const handleOpenAuthorDetails = async (author: any) => {
@@ -164,12 +209,16 @@ export default function ReportsClient() {
 
   // Export handlers
   const handleExportCSV = () => {
-    if (!reportData || reportData.length === 0) {
+    if (!reportData) {
       toast.error("ไม่มีข้อมูลที่จะดาวน์โหลด");
       return;
     }
 
     if (activeTab === "daily") {
+      if (!Array.isArray(reportData) || reportData.length === 0) {
+        toast.error("ไม่มีข้อมูลที่จะดาวน์โหลด");
+        return;
+      }
       const headers = ["วันที่", "ยอดเข้าชมทั้งหมด", "จำนวนผู้ใช้ไม่ซ้ำ (Unique)"];
       const rows = reportData.map((d: any) => [
         new Date(d.visit_day).toLocaleDateString("th-TH"),
@@ -178,21 +227,43 @@ export default function ReportsClient() {
       ]);
       exportToCSV(`report_visits_daily_${startDate}_to_${endDate}`, headers, rows);
     } else if (activeTab === "monthly") {
+      const dailyData = reportData.daily || [];
+      if (dailyData.length === 0) {
+        toast.error("ไม่มีข้อมูลที่จะดาวน์โหลด");
+        return;
+      }
+      const headers = ["วันที่", "ยอดเข้าชมทั้งหมด", "จำนวนผู้ใช้ไม่ซ้ำ (Unique)"];
+      const rows = dailyData.map((d: any) => [
+        new Date(d.visit_day).toLocaleDateString("th-TH"),
+        d.visit_count,
+        d.unique_count,
+      ]);
+      exportToCSV(`report_visits_monthly_${targetMonth}`, headers, rows);
+    } else if (activeTab === "yearly") {
+      const monthlyData = reportData.monthly || [];
+      if (monthlyData.length === 0) {
+        toast.error("ไม่มีข้อมูลที่จะดาวน์โหลด");
+        return;
+      }
       const headers = ["เดือน", "ยอดเข้าชมทั้งหมด"];
-      const rows = reportData.map((d: any) => [
+      const rows = monthlyData.map((d: any) => [
         new Date(2020, d.visit_month - 1).toLocaleDateString("th-TH", { month: "long" }),
         d.visit_count,
       ]);
-      exportToCSV(`report_visits_monthly_${targetYear}`, headers, rows);
-    } else if (activeTab === "yearly") {
-      const headers = ["ปี", "ยอดเข้าชมทั้งหมด"];
-      const rows = reportData.map((d: any) => [d.visit_year + 543, d.visit_count]); // Convert to Buddhist year
-      exportToCSV("report_visits_yearly", headers, rows);
+      exportToCSV(`report_visits_yearly_${targetYear}`, headers, rows);
     } else if (activeTab === "category") {
+      if (!Array.isArray(reportData) || reportData.length === 0) {
+        toast.error("ไม่มีข้อมูลที่จะดาวน์โหลด");
+        return;
+      }
       const headers = ["ประเภทนิยาย", "ยอดเข้าชมทั้งหมด"];
       const rows = reportData.map((d: any) => [d.category_name, d.visit_count]);
       exportToCSV(`report_visits_by_category_${startDate}_to_${endDate}`, headers, rows);
     } else if (activeTab === "author") {
+      if (!Array.isArray(reportData) || reportData.length === 0) {
+        toast.error("ไม่มีข้อมูลที่จะดาวน์โหลด");
+        return;
+      }
       const headers = ["อันดับ", "นามปากกา", "Username", "จำนวนนิยาย", "ยอดเข้าชมรวม"];
       const rows = reportData.map((d: any, idx: number) => [
         idx + 1,
@@ -234,7 +305,7 @@ export default function ReportsClient() {
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => updateQueryParams({ start: e.target.value })}
                 className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none transition-colors"
               />
             </div>
@@ -242,29 +313,39 @@ export default function ReportsClient() {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => updateQueryParams({ end: e.target.value })}
               className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none transition-colors"
             />
           </div>
         )}
 
-        {/* Monthly report target year selector */}
+        {/* Monthly report target month selector */}
         {activeTab === "monthly" && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-white/40 font-bold">เลือกเดือนเป้าหมาย:</span>
+            <input
+              type="month"
+              value={targetMonth}
+              onChange={(e) => updateQueryParams({ month: e.target.value })}
+              className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none"
+            />
+          </div>
+        )}
+
+        {/* Yearly report target year selector */}
+        {activeTab === "yearly" && (
           <div className="flex items-center gap-3">
             <span className="text-xs text-white/40 font-bold">เลือกปีเป้าหมาย:</span>
             <select
               value={targetYear}
-              onChange={(e) => setTargetYear(Number(e.target.value))}
+              onChange={(e) => updateQueryParams({ year: e.target.value })}
               className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none"
             >
-              {[0, 1, 2].map((i) => {
-                const yr = new Date().getFullYear() - i;
-                return (
-                  <option key={yr} value={yr}>
-                    พ.ศ. {yr + 543}
-                  </option>
-                );
-              })}
+              {availableYears.map((yr) => (
+                <option key={yr} value={yr}>
+                  พ.ศ. {yr + 543}
+                </option>
+              ))}
             </select>
           </div>
         )}
@@ -281,7 +362,7 @@ export default function ReportsClient() {
             <button
               key={tab.id}
               onClick={() => {
-                setActiveTab(tab.id);
+                updateQueryParams({ tab: tab.id });
                 setReportData(null);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -422,76 +503,136 @@ export default function ReportsClient() {
 
               {/* ─── TAB 3: MONTHLY VISITS ─── */}
               {activeTab === "monthly" && reportData && (
-                <div className="bg-[#171513]/60 border border-white/5 rounded-2xl p-6 space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                    <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">
-                      กราฟแนวโน้มรายเดือน (พ.ศ. {targetYear + 543})
-                    </h3>
-                    <button
-                      onClick={handleExportCSV}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-white/5 bg-white/5 text-white/60 hover:text-white text-[10px] font-bold cursor-pointer transition-all"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      <span>Export CSV</span>
-                    </button>
+                <div className="space-y-6">
+                  {/* Stat Card */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/15 rounded-2xl p-6 text-center flex flex-col justify-center">
+                      <TrendingUp className="h-6 w-6 text-accent mx-auto mb-3" />
+                      <p className="text-xs font-bold text-white/40 uppercase tracking-wider">
+                        ยอดผู้เข้าชมรวมประจำเดือน
+                      </p>
+                      <p className="text-4xl font-black text-white mt-2 leading-none">
+                        {Number(reportData.total_visits || 0).toLocaleString("th-TH")}
+                      </p>
+                      <p className="text-[10px] text-white/20 mt-3">
+                        เดือน {new Date(targetMonth + "-02").toLocaleDateString("th-TH", { month: "long", year: "numeric" })}
+                      </p>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 border border-blue-500/10 rounded-2xl p-6 text-center flex flex-col justify-center">
+                      <p className="text-xs font-bold text-white/40 uppercase tracking-wider">
+                        เปรียบเทียบกับเดือนก่อนหน้า
+                      </p>
+                      {reportData.prev_total_visits > 0 ? (
+                        (() => {
+                          const diff = reportData.total_visits - reportData.prev_total_visits;
+                          const pct = (diff / reportData.prev_total_visits) * 100;
+                          const isUp = diff >= 0;
+                          return (
+                            <div className="mt-2">
+                              <p className={`text-2xl font-black ${isUp ? "text-emerald-450" : "text-red-400"}`}>
+                                {isUp ? "+" : ""}{pct.toFixed(1)}%
+                              </p>
+                              <p className="text-[10px] text-white/20 mt-2">
+                                เดือนก่อนหน้ามียอดเข้าชม {reportData.prev_total_visits.toLocaleString()} ครั้ง
+                              </p>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <p className="text-sm font-bold text-white/30 mt-3">
+                          ไม่มีข้อมูลเปรียบเทียบจากเดือนก่อนหน้า
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Monthly Chart */}
-                  <div className="w-full h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={reportData.map((d: any) => ({
-                          name: new Date(2020, d.visit_month - 1).toLocaleDateString("th-TH", {
-                            month: "short",
-                          }),
-                          ยอดเข้าชม: d.visit_count,
-                        }))}
-                        margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+                  {/* Daily graph */}
+                  <div className="bg-[#171513]/60 border border-white/5 rounded-2xl p-6 space-y-6">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                      <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">
+                        กราฟยอดเข้าชมรายวันภายในเดือน
+                      </h3>
+                      <button
+                        onClick={handleExportCSV}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-white/5 bg-white/5 text-white/60 hover:text-white text-[10px] font-bold cursor-pointer transition-all"
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2e2a27" />
-                        <XAxis dataKey="name" stroke="#8c8278" fontSize={10} />
-                        <YAxis stroke="#8c8278" fontSize={10} />
-                        <Tooltip />
-                        <Bar dataKey="ยอดเข้าชม" fill="#e09050" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                        <Download className="h-3.5 w-3.5" />
+                        <span>Export CSV</span>
+                      </button>
+                    </div>
+
+                    <div className="w-full h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={(reportData.daily || []).map((d: any) => ({
+                            name: new Date(d.visit_day).getDate().toString(),
+                            ยอดเข้าชม: d.visit_count,
+                          }))}
+                          margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#2e2a27" />
+                          <XAxis dataKey="name" stroke="#8c8278" fontSize={9} />
+                          <YAxis stroke="#8c8278" fontSize={9} />
+                          <Tooltip formatter={(value) => [`${value} ครั้ง`, "ยอดเข้าชม"]} />
+                          <Bar dataKey="ยอดเข้าชม" fill="#e09050" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* ─── TAB 4: YEARLY VISITS ─── */}
               {activeTab === "yearly" && reportData && (
-                <div className="bg-[#171513]/60 border border-white/5 rounded-2xl p-6 space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                    <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">
-                      สถิติเปรียบเทียบแต่ละปี
-                    </h3>
-                    <button
-                      onClick={handleExportCSV}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-white/5 bg-white/5 text-white/60 hover:text-white text-[10px] font-bold cursor-pointer transition-all"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      <span>Export CSV</span>
-                    </button>
+                <div className="space-y-6">
+                  {/* Stat Card */}
+                  <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/15 rounded-2xl p-6 text-center max-w-sm mx-auto">
+                    <TrendingUp className="h-6 w-6 text-accent mx-auto mb-3" />
+                    <p className="text-xs font-bold text-white/40 uppercase tracking-wider">
+                      ยอดผู้เข้าชมรวมสะสมรายปี
+                    </p>
+                    <p className="text-4xl font-black text-white mt-2 leading-none">
+                      {Number(reportData.total_visits || 0).toLocaleString("th-TH")}
+                    </p>
+                    <p className="text-[10px] text-white/20 mt-3">
+                      ปี พ.ศ. {targetYear + 543}
+                    </p>
                   </div>
 
-                  {/* Yearly Chart */}
-                  <div className="w-full h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={reportData.map((d: any) => ({
-                          name: `พ.ศ. ${d.visit_year + 543}`,
-                          ยอดเข้าชม: d.visit_count,
-                        }))}
-                        margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+                  <div className="bg-[#171513]/60 border border-white/5 rounded-2xl p-6 space-y-6">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                      <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">
+                        กราฟเปรียบเทียบรายเดือนของปี พ.ศ. {targetYear + 543}
+                      </h3>
+                      <button
+                        onClick={handleExportCSV}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-white/5 bg-white/5 text-white/60 hover:text-white text-[10px] font-bold cursor-pointer transition-all"
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2e2a27" />
-                        <XAxis dataKey="name" stroke="#8c8278" fontSize={10} />
-                        <YAxis stroke="#8c8278" fontSize={10} />
-                        <Tooltip />
-                        <Bar dataKey="ยอดเข้าชม" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                        <Download className="h-3.5 w-3.5" />
+                        <span>Export CSV</span>
+                      </button>
+                    </div>
+
+                    <div className="w-full h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={(reportData.monthly || []).map((d: any) => ({
+                            name: new Date(2020, d.visit_month - 1).toLocaleDateString("th-TH", {
+                              month: "short",
+                            }),
+                            ยอดเข้าชม: d.visit_count,
+                          }))}
+                          margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#2e2a27" />
+                          <XAxis dataKey="name" stroke="#8c8278" fontSize={10} />
+                          <YAxis stroke="#8c8278" fontSize={10} />
+                          <Tooltip formatter={(value) => [`${value} ครั้ง`, "ยอดเข้าชม"]} />
+                          <Bar dataKey="ยอดเข้าชม" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
               )}
