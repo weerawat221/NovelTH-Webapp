@@ -83,12 +83,12 @@ export default function ReportsClient() {
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
   const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`; // e.g. "2026-07"
 
-  // URL Query States
-  const activeTab = searchParams.get("tab") || "overview";
-  const startDate = searchParams.get("start") || thirtyDaysAgoStr;
-  const endDate = searchParams.get("end") || todayStr;
-  const targetYear = Number(searchParams.get("year")) || today.getFullYear();
-  const targetMonth = searchParams.get("month") || currentMonthStr;
+  // Local States for Filters (initialized from searchParams if available, or fallbacks)
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
+  const [startDate, setStartDate] = useState(searchParams.get("start") || thirtyDaysAgoStr);
+  const [endDate, setEndDate] = useState(searchParams.get("end") || todayStr);
+  const [targetYear, setTargetYear] = useState(Number(searchParams.get("year")) || today.getFullYear());
+  const [targetMonth, setTargetMonth] = useState(searchParams.get("month") || currentMonthStr);
 
   // Loading & Data States
   const [loading, setLoading] = useState(true);
@@ -122,6 +122,52 @@ export default function ReportsClient() {
     });
     router.push(`${pathname}?${params.toString()}`);
   };
+
+  // 1. Initial Mount Hook: If URL params are missing, replace URL with defaults immediately
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    let updated = false;
+
+    if (!params.has("tab")) {
+      params.set("tab", "overview");
+      updated = true;
+    }
+    if (!params.has("start")) {
+      params.set("start", thirtyDaysAgoStr);
+      updated = true;
+    }
+    if (!params.has("end")) {
+      params.set("end", todayStr);
+      updated = true;
+    }
+    if (!params.has("year")) {
+      params.set("year", String(new Date().getFullYear()));
+      updated = true;
+    }
+    if (!params.has("month")) {
+      params.set("month", currentMonthStr);
+      updated = true;
+    }
+
+    if (updated) {
+      router.replace(`${window.location.pathname}?${params.toString()}`);
+    }
+  }, []);
+
+  // 2. Synchronize URL changes to local states (handles manual URL entry or Back/Forward browser navigation)
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const start = searchParams.get("start");
+    const end = searchParams.get("end");
+    const year = searchParams.get("year");
+    const month = searchParams.get("month");
+
+    if (tab && tab !== activeTab) setActiveTab(tab);
+    if (start && start !== startDate) setStartDate(start);
+    if (end && end !== endDate) setEndDate(end);
+    if (year && Number(year) !== targetYear) setTargetYear(Number(year));
+    if (month && month !== targetMonth) setTargetMonth(month);
+  }, [searchParams]);
 
   useEffect(() => {
     async function loadReport() {
@@ -305,7 +351,11 @@ export default function ReportsClient() {
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => updateQueryParams({ start: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStartDate(val);
+                  updateQueryParams({ start: val });
+                }}
                 className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none transition-colors"
               />
             </div>
@@ -313,7 +363,11 @@ export default function ReportsClient() {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => updateQueryParams({ end: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setEndDate(val);
+                updateQueryParams({ end: val });
+              }}
               className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none transition-colors"
             />
           </div>
@@ -326,7 +380,11 @@ export default function ReportsClient() {
             <input
               type="month"
               value={targetMonth}
-              onChange={(e) => updateQueryParams({ month: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTargetMonth(val);
+                updateQueryParams({ month: val });
+              }}
               className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none"
             />
           </div>
@@ -338,7 +396,11 @@ export default function ReportsClient() {
             <span className="text-xs text-white/40 font-bold">เลือกปีเป้าหมาย:</span>
             <select
               value={targetYear}
-              onChange={(e) => updateQueryParams({ year: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTargetYear(Number(val));
+                updateQueryParams({ year: val });
+              }}
               className="bg-[#1c1917] border border-white/5 text-white/80 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none"
             >
               {availableYears.map((yr) => (
@@ -362,6 +424,7 @@ export default function ReportsClient() {
             <button
               key={tab.id}
               onClick={() => {
+                setActiveTab(tab.id);
                 updateQueryParams({ tab: tab.id });
                 setReportData(null);
               }}
