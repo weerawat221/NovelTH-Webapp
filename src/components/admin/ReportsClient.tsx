@@ -70,6 +70,330 @@ function exportToCSV(filename: string, headers: string[], rows: (string | number
   document.body.removeChild(link);
 }
 
+const THAI_MONTHS_SHORT = [
+  "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+];
+
+const THAI_MONTHS_FULL = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+];
+
+const DAYS_SHORT = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+
+function formatThaiDate(dateStr: string) {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-");
+  const year = parseInt(y, 10);
+  const monthIdx = parseInt(m, 10) - 1;
+  const day = parseInt(d, 10);
+  return `${day} ${THAI_MONTHS_SHORT[monthIdx]} ${year + 543}`;
+}
+
+function formatThaiMonth(monthStr: string) {
+  if (!monthStr) return "";
+  const [y, m] = monthStr.split("-");
+  const year = parseInt(y, 10);
+  const monthIdx = parseInt(m, 10) - 1;
+  return `${THAI_MONTHS_FULL[monthIdx]} พ.ศ. ${year + 543}`;
+}
+
+function CustomDatePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(() => {
+    const [y, m, d] = value.split("-");
+    return new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+  });
+
+  useEffect(() => {
+    const [y, m, d] = value.split("-");
+    setViewDate(new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10)));
+  }, [value]);
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const days = [];
+  const prevMonthDays = new Date(year, month, 0).getDate();
+  for (let i = firstDayOfMonth - 1; i >= 0; i--) {
+    days.push({
+      day: prevMonthDays - i,
+      monthOffset: -1,
+      dateStr: `${month === 0 ? year - 1 : year}-${String(month === 0 ? 12 : month).padStart(2, "0")}-${String(prevMonthDays - i).padStart(2, "0")}`,
+    });
+  }
+
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push({
+      day: i,
+      monthOffset: 0,
+      dateStr: `${year}-${String(month + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`,
+    });
+  }
+
+  const remaining = 42 - days.length;
+  for (let i = 1; i <= remaining; i++) {
+    days.push({
+      day: i,
+      monthOffset: 1,
+      dateStr: `${month === 11 ? year + 1 : year}-${String(month === 11 ? 1 : month + 2).padStart(2, "0")}-${String(i).padStart(2, "0")}`,
+    });
+  }
+
+  const handlePrevMonth = () => {
+    setViewDate(new Date(year, month - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setViewDate(new Date(year, month + 1, 1));
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative flex items-center justify-start appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-9 pr-4 py-2.5 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-44 text-left shadow-sm"
+      >
+        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+        <span>{formatThaiDate(value)}</span>
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full mt-2 left-0 sm:left-auto z-50 bg-surface border border-border rounded-2xl shadow-xl p-4 text-foreground w-72 select-none">
+            <div className="flex items-center justify-between mb-4">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="p-1 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-xs font-bold">
+                {THAI_MONTHS_FULL[month]} {year + 543}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="p-1 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-colors cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 text-center mb-1">
+              {DAYS_SHORT.map((d) => (
+                <span key={d} className="text-[10px] font-bold text-muted uppercase">
+                  {d}
+                </span>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((item, idx) => {
+                const isSelected = item.dateStr === value;
+                const isCurrentMonth = item.monthOffset === 0;
+                const t = new Date();
+                const isToday = isCurrentMonth && 
+                  item.day === t.getDate() && 
+                  month === t.getMonth() && 
+                  year === t.getFullYear();
+
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      onChange(item.dateStr);
+                      setIsOpen(false);
+                    }}
+                    className={`
+                      aspect-square text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center
+                      ${isSelected 
+                        ? "bg-accent text-white font-extrabold shadow-sm shadow-accent/30" 
+                        : isCurrentMonth
+                          ? "text-foreground hover:bg-surface-hover"
+                          : "text-muted/40 hover:bg-surface-hover/50"
+                      }
+                      ${isToday && !isSelected ? "border border-accent/40" : ""}
+                    `}
+                  >
+                    {item.day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CustomMonthPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(() => {
+    const [y] = value.split("-");
+    return parseInt(y, 10);
+  });
+
+  const [selectedYear, selectedMonth] = useMemo(() => {
+    const [y, m] = value.split("-");
+    return [parseInt(y, 10), parseInt(m, 10) - 1];
+  }, [value]);
+
+  useEffect(() => {
+    const [y] = value.split("-");
+    setViewYear(parseInt(y, 10));
+  }, [value]);
+
+  const handlePrevYear = () => {
+    setViewYear((prev) => prev - 1);
+  };
+
+  const handleNextYear = () => {
+    setViewYear((prev) => prev + 1);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative flex items-center justify-start appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-9 pr-4 py-2.5 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-48 text-left shadow-sm"
+      >
+        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+        <span>{formatThaiMonth(value)}</span>
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full mt-2 left-0 sm:left-auto z-50 bg-surface border border-border rounded-2xl shadow-xl p-4 text-foreground w-64 select-none">
+            <div className="flex items-center justify-between mb-4">
+              <button
+                type="button"
+                onClick={handlePrevYear}
+                className="p-1 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-xs font-bold">พ.ศ. {viewYear + 543}</span>
+              <button
+                type="button"
+                onClick={handleNextYear}
+                className="p-1 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-colors cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {THAI_MONTHS_FULL.map((mName, idx) => {
+                const isSelected = selectedYear === viewYear && selectedMonth === idx;
+                const monthValStr = `${viewYear}-${String(idx + 1).padStart(2, "0")}`;
+
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      onChange(monthValStr);
+                      setIsOpen(false);
+                    }}
+                    className={`
+                      px-2 py-3 text-xs font-bold rounded-xl transition-all cursor-pointer text-center
+                      ${isSelected 
+                        ? "bg-accent text-white font-extrabold shadow-sm shadow-accent/30" 
+                        : "text-foreground hover:bg-surface-hover"
+                      }
+                    `}
+                  >
+                    {THAI_MONTHS_SHORT[idx]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CustomYearPicker({
+  value,
+  onChange,
+  availableYears,
+}: {
+  value: number;
+  onChange: (val: number) => void;
+  availableYears: number[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative flex items-center justify-start appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-3.5 pr-9 py-2.5 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-32 text-left shadow-sm"
+      >
+        <span>พ.ศ. {value + 543}</span>
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full mt-2 left-0 sm:left-auto z-50 bg-surface border border-border rounded-2xl shadow-xl py-2 text-foreground w-36 select-none max-h-60 overflow-y-auto">
+            {availableYears.map((yr) => {
+              const isSelected = yr === value;
+              return (
+                <button
+                  key={yr}
+                  type="button"
+                  onClick={() => {
+                    onChange(yr);
+                    setIsOpen(false);
+                  }}
+                  className={`
+                    w-full px-4 py-2.5 text-xs font-bold text-left transition-all cursor-pointer
+                    ${isSelected 
+                      ? "bg-accent/10 text-accent font-extrabold" 
+                      : "text-foreground hover:bg-surface-hover"
+                    }
+                  `}
+                >
+                  พ.ศ. {yr + 543}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function fillMissingDates(data: any[], startStr: string, endStr: string) {
   const filled = [];
   const start = new Date(startStr);
@@ -415,33 +739,21 @@ export default function ReportsClient() {
         {/* Date Filters Form */}
         {activeTab !== "monthly" && activeTab !== "yearly" && (
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex items-center">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setStartDate(val);
-                  updateQueryParams({ start: val });
-                }}
-                className="appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-9 pr-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-auto"
-              />
-            </div>
+            <CustomDatePicker
+              value={startDate}
+              onChange={(val) => {
+                setStartDate(val);
+                updateQueryParams({ start: val });
+              }}
+            />
             <span className="text-muted text-xs">ถึง</span>
-            <div className="relative flex items-center">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setEndDate(val);
-                  updateQueryParams({ end: val });
-                }}
-                className="appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-9 pr-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-auto"
-              />
-            </div>
+            <CustomDatePicker
+              value={endDate}
+              onChange={(val) => {
+                setEndDate(val);
+                updateQueryParams({ end: val });
+              }}
+            />
             <button
               onClick={() => {
                 setStartDate(defaultDaily.start);
@@ -462,19 +774,13 @@ export default function ReportsClient() {
         {activeTab === "monthly" && (
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs text-muted font-bold">เลือกเดือนเป้าหมาย:</span>
-            <div className="relative flex items-center">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
-              <input
-                type="month"
-                value={targetMonth}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setTargetMonth(val);
-                  updateQueryParams({ month: val });
-                }}
-                className="appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-9 pr-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-auto"
-              />
-            </div>
+            <CustomMonthPicker
+              value={targetMonth}
+              onChange={(val) => {
+                setTargetMonth(val);
+                updateQueryParams({ month: val });
+              }}
+            />
             <button
               onClick={() => {
                 setTargetMonth(defaultMonth);
@@ -494,24 +800,14 @@ export default function ReportsClient() {
         {activeTab === "yearly" && (
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs text-muted font-bold">เลือกปีเป้าหมาย:</span>
-            <div className="relative flex items-center">
-              <select
-                value={targetYear}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setTargetYear(Number(val));
-                  updateQueryParams({ year: val });
-                }}
-                className="appearance-none bg-surface border border-border text-foreground rounded-xl text-xs font-bold pl-3.5 pr-9 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent cursor-pointer transition-all w-full sm:w-auto"
-              >
-                {availableYears.map((yr) => (
-                  <option key={yr} value={yr}>
-                    พ.ศ. {yr + 543}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
-            </div>
+            <CustomYearPicker
+              value={targetYear}
+              onChange={(val) => {
+                setTargetYear(val);
+                updateQueryParams({ year: String(val) });
+              }}
+              availableYears={availableYears}
+            />
             <button
               onClick={() => {
                 setTargetYear(defaultYear);
