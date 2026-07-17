@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Chapter, ChapterListItem } from "@/types/novel";
 import ChapterReader from "@/components/reader/ChapterReader";
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   params: Promise<{
     novelId: string;
@@ -121,19 +123,17 @@ export default async function ChapterPage({ params }: PageProps) {
         .maybeSingle();
 
       if (existingHistory) {
-        supabase
+        await supabase
           .from("reading_history")
           .update({ read_date: new Date().toISOString() })
-          .eq("history_id", existingHistory.history_id)
-          .then(() => {});
+          .eq("history_id", existingHistory.history_id);
       } else {
-        supabase
+        await supabase
           .from("reading_history")
           .insert({
             user_id: userData.user_id,
             chapter_id: chapterData.chapter_id,
-          })
-          .then(() => {});
+          });
       }
     }
   }
