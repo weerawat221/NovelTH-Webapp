@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Send, Eye, Clock, Loader2, Sparkles, Check } from "lucide-react";
+import { ArrowLeft, Save, Send, Eye, Clock, Loader2, Sparkles, Check, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -38,6 +38,7 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
   // UI Modes
   const [isPreview, setIsPreview] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
 
   // Publish Modal State
   const [publishType, setPublishType] = useState<"now" | "schedule">("now");
@@ -269,36 +270,102 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
 
           {/* Action Tools */}
           <div className="flex items-center gap-2">
-            {/* Preview Toggle */}
-            <button
-              onClick={() => setIsPreview(!isPreview)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${isPreview
-                ? "bg-accent text-white shadow-md shadow-accent/15"
-                : "border border-white/10 text-white/60 hover:text-white hover:bg-white/5"
-                }`}
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span>{isPreview ? "แก้ไขเนื้อหา" : "ดูตัวอย่างอ่าน"}</span>
-            </button>
+            {/* Desktop Actions */}
+            <div className="hidden sm:flex items-center gap-2">
+              {/* Preview Toggle */}
+              <button
+                onClick={() => setIsPreview(!isPreview)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${isPreview
+                  ? "bg-accent text-white shadow-md shadow-accent/15"
+                  : "border border-white/10 text-white/60 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                <span>{isPreview ? "แก้ไขเนื้อหา" : "ดูตัวอย่างอ่าน"}</span>
+              </button>
 
-            {/* Save Draft Button */}
-            <button
-              onClick={() => saveDraft(false)}
-              disabled={manualSaving || autosaveStatus === "saving"}
-              className="hidden sm:inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border border-white/10 text-white/80 hover:text-white hover:bg-white/5 disabled:opacity-35 transition-colors cursor-pointer"
-            >
-              {manualSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              <span>บันทึกแบบร่าง</span>
-            </button>
+              {/* Save Draft Button */}
+              <button
+                onClick={() => saveDraft(false)}
+                disabled={manualSaving || autosaveStatus === "saving"}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border border-white/10 text-white/80 hover:text-white hover:bg-white/5 disabled:opacity-35 transition-colors cursor-pointer"
+              >
+                {manualSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                <span>บันทึกแบบร่าง</span>
+              </button>
 
-            {/* Publish Trigger */}
-            <button
-              onClick={() => setIsPublishModalOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 px-4.5 py-2 rounded-xl bg-[#e09050] hover:bg-[#c97c3a] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all duration-200"
-            >
-              <Send className="h-3.5 w-3.5" />
-              <span>เผยแพร่ตอน</span>
-            </button>
+              {/* Publish Trigger */}
+              <button
+                onClick={() => setIsPublishModalOpen(true)}
+                className="inline-flex items-center justify-center gap-1.5 px-4.5 py-2 rounded-xl bg-[#e09050] hover:bg-[#c97c3a] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <Send className="h-3.5 w-3.5" />
+                <span>เผยแพร่ตอน</span>
+              </button>
+            </div>
+
+            {/* Mobile Actions Dropdown */}
+            <div className="sm:hidden relative">
+              <button
+                onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl border border-white/10 text-white/80 hover:text-white bg-white/5 text-xs font-bold transition-all cursor-pointer"
+              >
+                <span>จัดการตอน</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isActionsDropdownOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {isActionsDropdownOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div 
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => setIsActionsDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-44 rounded-xl bg-[#1c1917] border border-white/10 shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-100 flex flex-col">
+                    {/* Preview Toggle */}
+                    <button
+                      onClick={() => {
+                        setIsPreview(!isPreview);
+                        setIsActionsDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left"
+                    >
+                      <Eye className="h-3.5 w-3.5 text-blue-400" />
+                      <span>{isPreview ? "แก้ไขเนื้อหา" : "ดูตัวอย่าง"}</span>
+                    </button>
+
+                    {/* Save Draft */}
+                    <button
+                      onClick={() => {
+                        saveDraft(false);
+                        setIsActionsDropdownOpen(false);
+                      }}
+                      disabled={manualSaving || autosaveStatus === "saving"}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white/70 hover:text-white hover:bg-white/5 disabled:opacity-35 transition-colors text-left border-t border-white/5"
+                    >
+                      {manualSaving ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" />
+                      ) : (
+                        <Save className="h-3.5 w-3.5 text-amber-400" />
+                      )}
+                      <span>บันทึกแบบร่าง</span>
+                    </button>
+
+                    {/* Publish */}
+                    <button
+                      onClick={() => {
+                        setIsPublishModalOpen(true);
+                        setIsActionsDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-orange-400 hover:text-orange-350 hover:bg-white/5 transition-colors text-left border-t border-white/5"
+                    >
+                      <Send className="h-3.5 w-3.5 text-orange-400" />
+                      <span>เผยแพร่ตอน</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
