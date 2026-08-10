@@ -155,92 +155,90 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
     checkAuth();
   }, [supabase]);
 
-  // Fetch comments
+  // ─── Helper: check if a comment is owned by the current user ───
+  const isOwnComment = useCallback((c: CommentWithUser) => {
+    if (!dbUserId) return false;
+    if (c.commenter_type !== commenterType) return false;
+    switch (commenterType) {
+      case "admin": return c.admin_id === dbUserId;
+      case "author": return c.author_id === dbUserId;
+      case "user": return c.user_id === dbUserId;
+      default: return false;
+    }
+  }, [dbUserId, commenterType]);
+
+  // Fetch comments — always fetch visible + hidden, filter on client side
   const fetchComments = useCallback(async () => {
     setLoading(true);
 
+    const commentSelect = `
+      comment_id,
+      user_id,
+      author_id,
+      admin_id,
+      commenter_type,
+      chapter_id,
+      parent_comment_id,
+      comment_text,
+      is_spoiler,
+      comment_date,
+      status,
+      user:user_id (user_id, username, profile_image),
+      author:author_id (author_id, username, pen_name, profile_image),
+      admin:admin_id (admin_id, username, full_name)
+    `;
+
+    // Fetch top-level comments (visible + hidden)
+    const { data: topLevel, count } = await supabase
+      .from("comment")
+      .select(commentSelect, { count: "exact" })
+      .eq("chapter_id", chapterId)
+      .is("parent_comment_id", null)
+      .in("status", ["visible", "hidden"])
+      .order("comment_date", { ascending: true });
+
+    // Fetch all replies for this chapter (visible + hidden)
+    const { data: replies } = await supabase
+      .from("comment")
+      .select(commentSelect)
+      .eq("chapter_id", chapterId)
+      .not("parent_comment_id", "is", null)
+      .in("status", ["visible", "hidden"])
+      .order("comment_date", { ascending: true });
+
     const isAuthorOrAdmin = isAdmin || (loggedInAuthorId !== null && loggedInAuthorId === novelAuthorId);
 
-    // Fetch top-level comments
-    let topQuery = supabase
-      .from("comment")
-      .select(
-        `
-        comment_id,
-        user_id,
-        author_id,
-        admin_id,
-        commenter_type,
-        chapter_id,
-        parent_comment_id,
-        comment_text,
-        is_spoiler,
-        comment_date,
-        status,
-        user:user_id (user_id, username, profile_image),
-        author:author_id (author_id, username, pen_name, profile_image),
-        admin:admin_id (admin_id, username, full_name)
-      `,
-        { count: "exact" }
-      )
-      .eq("chapter_id", chapterId)
-      .is("parent_comment_id", null);
+    // Client-side filter: show hidden comments only to (owner / novel author / admin)
+    const canSeeHidden = (c: any): boolean => {
+      if (c.status === "visible") return true;
+      // Hidden comment: visible to moderators or owner
+      if (isAuthorOrAdmin) return true;
+      // Check if the logged-in user owns this hidden comment
+      if (!dbUserId) return false;
+      if (c.commenter_type === commenterType) {
+        if (commenterType === "admin" && c.admin_id === dbUserId) return true;
+        if (commenterType === "author" && c.author_id === dbUserId) return true;
+        if (commenterType === "user" && c.user_id === dbUserId) return true;
+      }
+      return false;
+    };
 
-    if (isAuthorOrAdmin) {
-      topQuery = topQuery.in("status", ["visible", "hidden"]);
-    } else {
-      topQuery = topQuery.eq("status", "visible");
-    }
-
-    const { data: topLevel, count } = await topQuery.order("comment_date", { ascending: true });
-
-    // Fetch all replies for this chapter
-    let repliesQuery = supabase
-      .from("comment")
-      .select(
-        `
-        comment_id,
-        user_id,
-        author_id,
-        admin_id,
-        commenter_type,
-        chapter_id,
-        parent_comment_id,
-        comment_text,
-        is_spoiler,
-        comment_date,
-        status,
-        user:user_id (user_id, username, profile_image),
-        author:author_id (author_id, username, pen_name, profile_image),
-        admin:admin_id (admin_id, username, full_name)
-      `
-      )
-      .eq("chapter_id", chapterId)
-      .not("parent_comment_id", "is", null);
-
-    if (isAuthorOrAdmin) {
-      repliesQuery = repliesQuery.in("status", ["visible", "hidden"]);
-    } else {
-      repliesQuery = repliesQuery.eq("status", "visible");
-    }
-
-    const { data: replies } = await repliesQuery.order("comment_date", { ascending: true });
+    const filteredTop = (topLevel || []).filter(canSeeHidden);
+    const filteredReplies = (replies || []).filter(canSeeHidden);
 
     // Group replies by parent_comment_id
     const replyMap = new Map<number, CommentWithUser[]>();
-    if (replies) {
-      for (const r of replies) {
-        const parentId = r.parent_comment_id!;
-        if (!replyMap.has(parentId)) replyMap.set(parentId, []);
-        replyMap.get(parentId)!.push({
-          ...(r as any),
-          replies: [],
-        });
-      }
+    for (const r of filteredReplies) {
+      const parentId = r.parent_comment_id!;
+      if (!replyMap.has(parentId)) replyMap.set(parentId, []);
+      replyMap.get(parentId)!.push({
+        ...(r as any),
+        replies: [],
+      });
     }
 
     // Attach replies to top-level comments
-    const structured: CommentWithUser[] = (topLevel || []).map((c: any) => ({
+    const structured: CommentWithUser[] = filteredTop.map((c: any) => ({
       ...c,
       replies: replyMap.get(c.comment_id) || [],
     }));
@@ -248,7 +246,7 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
     setComments(structured);
     setTotalCount(count || 0);
     setLoading(false);
-  }, [chapterId, supabase, loggedInAuthorId, novelAuthorId, isAdmin]);
+  }, [chapterId, supabase, loggedInAuthorId, novelAuthorId, isAdmin, dbUserId, commenterType]);
 
   useEffect(() => {
     fetchComments();
@@ -274,7 +272,7 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
     }
   }, [loading, comments]);
 
-  // Hide comment (Author/Admin action)
+  // Hide comment (Author/Admin moderation action)
   const handleHideComment = async (commentId: number) => {
     if (!window.confirm("คุณต้องการซ่อนความคิดเห็นนี้ใช่หรือไม่? การซ่อนจะทำให้ความคิดเห็นนี้และข้อความตอบกลับทั้งหมดไม่แสดงผลต่อสาธารณะ")) {
       return;
@@ -298,7 +296,7 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
     }
   };
 
-  // Unhide comment (Author/Admin action)
+  // Unhide comment (Author/Admin moderation action)
   const handleUnhideComment = async (commentId: number) => {
     if (!window.confirm("คุณต้องการแสดงความคิดเห็นนี้อีกครั้งใช่หรือไม่?")) {
       return;
@@ -322,13 +320,91 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
     }
   };
 
-  // Trigger delete dialog
+  // ─── Own-comment actions ───
+
+  // Edit comment (Owner action)
+  const handleEditComment = async (commentId: number, newText: string, isSpoiler: boolean): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/comments/${commentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment_text: newText, is_spoiler: isSpoiler }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      toast.success("แก้ไขความคิดเห็นเรียบร้อยแล้ว");
+      await fetchComments();
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || "แก้ไขความคิดเห็นไม่สำเร็จ");
+      console.error(err);
+      return false;
+    }
+  };
+
+  // Hide own comment (Owner action)
+  const handleOwnHideComment = async (commentId: number) => {
+    if (!window.confirm("คุณต้องการซ่อนความคิดเห็นนี้ใช่หรือไม่?")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/comments/${commentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "hidden" }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      toast.success("ซ่อนความคิดเห็นของคุณเรียบร้อยแล้ว");
+      await fetchComments();
+    } catch (err: any) {
+      toast.error(err.message || "ซ่อนความคิดเห็นไม่สำเร็จ");
+      console.error(err);
+    }
+  };
+
+  // Unhide own comment (Owner action)
+  const handleOwnUnhideComment = async (commentId: number) => {
+    if (!window.confirm("คุณต้องการแสดงความคิดเห็นนี้อีกครั้งใช่หรือไม่?")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/comments/${commentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "visible" }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      toast.success("แสดงความคิดเห็นของคุณเรียบร้อยแล้ว");
+      await fetchComments();
+    } catch (err: any) {
+      toast.error(err.message || "ยกเลิกการซ่อนไม่สำเร็จ");
+      console.error(err);
+    }
+  };
+
+  // Trigger own-delete dialog (Owner action)
+  const triggerOwnDelete = (commentId: number, replyCount: number) => {
+    setCommentToDelete({ id: commentId, replyCount });
+    setDeleteDialogOpen(true);
+  };
+
+  // Trigger admin-delete dialog (Admin action)
   const triggerDelete = (commentId: number, replyCount: number) => {
     setCommentToDelete({ id: commentId, replyCount });
     setDeleteDialogOpen(true);
   };
 
-  // Hard delete comment (Admin action)
+  // Hard delete comment (shared handler for owner or admin)
   const handleDeleteComment = async () => {
     if (!commentToDelete) return;
     const commentId = commentToDelete.id;
@@ -337,7 +413,8 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/admin/comments/${commentId}`, {
+      // Use the unified /api/comments/[id] DELETE endpoint which checks ownership + admin
+      const res = await fetch(`/api/comments/${commentId}`, {
         method: "DELETE",
       });
 
@@ -488,9 +565,15 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
                   theme={theme}
                   isNovelAuthor={isNovelAuthor || isAdmin}
                   isAdmin={isAdmin}
+                  currentUserId={dbUserId}
+                  currentCommenterType={commenterType}
                   onHide={handleHideComment}
                   onUnhide={handleUnhideComment}
                   onDelete={triggerDelete}
+                  onEdit={handleEditComment}
+                  onOwnHide={handleOwnHideComment}
+                  onOwnUnhide={handleOwnUnhideComment}
+                  onOwnDelete={triggerOwnDelete}
                   onReply={(parentId) => {
                     setReplyingTo(
                       replyingTo === parentId ? null : parentId
