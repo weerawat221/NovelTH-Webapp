@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, ArrowLeft, Eye, Clock, BookOpen, ChevronRight, Calendar } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { relativeTime } from "@/lib/utils/relativeTime";
+import { isChapterPublished, normalizeUtcTimestamp, syncScheduledChapters } from "@/lib/utils/chapterPublish";
 
 interface ChapterItem {
   chapter_id: number;
@@ -32,6 +33,14 @@ export default function ChapterManager({ initialChapters, novel }: ChapterManage
   const [isDeleting, setIsDeleting] = useState(false);
 
   const supabase = createClient();
+
+  // Background sync for any due scheduled chapters
+  useEffect(() => {
+    const hasScheduled = chapters.some((c) => c.status === "scheduled");
+    if (hasScheduled) {
+      syncScheduledChapters(supabase);
+    }
+  }, [chapters, supabase]);
 
   // Handle Delete Chapter
   const handleDeleteConfirm = async () => {
@@ -109,8 +118,10 @@ export default function ChapterManager({ initialChapters, novel }: ChapterManage
       {chapters.length > 0 ? (
         <div className="bg-[#171513]/40 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-md divide-y divide-white/5">
           {chapters.map((chapter) => {
-            const status = statusConfig[chapter.status] || {
-              label: chapter.status,
+            const isPublished = isChapterPublished(chapter);
+            const displayStatus: "draft" | "published" | "scheduled" = isPublished ? "published" : chapter.status;
+            const status = statusConfig[displayStatus] || {
+              label: displayStatus,
               classes: "bg-gray-500/10 text-gray-500",
             };
             return (
@@ -137,16 +148,16 @@ export default function ChapterManager({ initialChapters, novel }: ChapterManage
                       <Eye className="h-3.5 w-3.5" />
                       {chapter.view_count.toLocaleString("th-TH")} วิว
                     </span>
-                    {chapter.status === "published" && chapter.published_at && (
+                    {displayStatus === "published" && (chapter.published_at || chapter.scheduled_at) && (
                       <span className="flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" />
-                        เผยแพร่ {relativeTime(chapter.published_at)}
+                        เผยแพร่ {relativeTime(chapter.published_at || chapter.scheduled_at!)}
                       </span>
                     )}
-                    {chapter.status === "scheduled" && chapter.scheduled_at && (
+                    {displayStatus === "scheduled" && chapter.scheduled_at && (
                       <span className="flex items-center gap-1 text-blue-400/80">
                         <Calendar className="h-3.5 w-3.5" />
-                        จะเผยแพร่ {new Date(chapter.scheduled_at.endsWith("Z") || chapter.scheduled_at.includes("+") ? chapter.scheduled_at : chapter.scheduled_at.replace(" ", "T") + "Z").toLocaleString("th-TH")}
+                        จะเผยแพร่ {new Date(normalizeUtcTimestamp(chapter.scheduled_at)).toLocaleString("th-TH")}
                       </span>
                     )}
                   </div>

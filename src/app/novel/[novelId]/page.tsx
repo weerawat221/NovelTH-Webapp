@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import type { NovelWithDetails, ChapterListItem } from "@/types/novel";
+import { syncScheduledChapters, isChapterPublished } from "@/lib/utils/chapterPublish";
 
 import Header from "@/components/layout/Header";
 import SubNavigation from "@/components/layout/SubNavigation";
@@ -92,6 +93,9 @@ export default async function Page({ params }: PageProps) {
     }
   }
 
+  // Ensure scheduled chapters that reached their time are updated in DB
+  await syncScheduledChapters(supabase);
+
   // 3. Fetch chapters for this novel
   const { data: chaptersData } = await supabase
     .from("chapter")
@@ -100,10 +104,16 @@ export default async function Page({ params }: PageProps) {
     .order("chapter_no", { ascending: true });
 
   const rawChapters = chaptersData || [];
-  const chapters: ChapterListItem[] = rawChapters.filter((c: any) => {
-    if (isNovelAuthor || isSystemAdmin) return true;
-    return c.status === "published";
-  });
+  const chapters: ChapterListItem[] = rawChapters
+    .filter((c: any) => {
+      if (isNovelAuthor || isSystemAdmin) return true;
+      return isChapterPublished(c);
+    })
+    .map((c: any) => ({
+      ...c,
+      published_at: c.published_at || c.scheduled_at || "",
+      status: isChapterPublished(c) ? "published" : c.status,
+    }));
 
   let initialFavorited = false;
   let lastReadChapterNo: number | null = null;

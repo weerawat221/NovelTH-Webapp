@@ -4,6 +4,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import AuthorDashboard from "@/components/author/AuthorDashboard";
 import AuthorSidebar from "@/components/author/AuthorSidebar";
+import { syncScheduledChapters } from "@/lib/utils/chapterPublish";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,9 @@ export default async function Page() {
   if (author.status === "pending") {
     redirect("/?error=author_pending");
   }
+
+  // Ensure scheduled chapters that reached their time are updated in DB
+  await syncScheduledChapters(supabase);
 
   // Fetch novels with category, chapters, and view_count
   const { data: novelsData, error } = await supabase

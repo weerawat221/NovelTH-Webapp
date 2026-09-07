@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { toLocalDatetimeInput, parseLocalDatetimeToUTC } from "@/lib/utils/chapterPublish";
 
 interface ChapterEditorProps {
   novelId: number;
@@ -41,8 +42,15 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
 
   // Publish Modal State
-  const [publishType, setPublishType] = useState<"now" | "schedule">("now");
-  const [scheduleDate, setScheduleDate] = useState("");
+  const [publishType, setPublishType] = useState<"now" | "schedule">(
+    initialData?.status === "scheduled" ? "schedule" : "now"
+  );
+  const [scheduleDate, setScheduleDate] = useState(() => {
+    if (initialData?.status === "scheduled" && initialData?.scheduled_at) {
+      return toLocalDatetimeInput(initialData.scheduled_at);
+    }
+    return "";
+  });
   const [notifyFollowers, setNotifyFollowers] = useState(true);
   const [publishing, setPublishing] = useState(false);
 
@@ -180,7 +188,7 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
 
       // 3. Update status, publish dates & content
       const isSchedule = publishType === "schedule";
-      const scheduledTime = isSchedule ? new Date(scheduleDate).toISOString() : null;
+      const scheduledTime = isSchedule ? parseLocalDatetimeToUTC(scheduleDate) : null;
 
       const { error: publishError } = await supabase
         .from("chapter")
@@ -489,16 +497,21 @@ export default function ChapterEditor({ novelId, novelName, chapterNo, initialDa
               {publishType === "schedule" && (
                 <div className="space-y-2 animate-in slide-in-from-top-1.5 duration-100">
                   <label className="block text-xs font-bold text-white/50">
-                    เลือกวันและเวลาเผยแพร่
+                    เลือกวันและเวลาเผยแพร่ (เวลาประเทศไทย UTC+7)
                   </label>
                   <input
                     type="datetime-local"
                     value={scheduleDate}
                     onChange={(e) => setScheduleDate(e.target.value)}
                     required
-                    min={new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)} // at least 5 mins in the future
+                    min={toLocalDatetimeInput(new Date(Date.now() + 60 * 1000))}
                     className="w-full bg-[#1c1917] border border-white/5 text-white/80 text-xs font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-accent/50 cursor-pointer"
                   />
+                  {scheduleDate && (
+                    <p className="text-[11px] text-amber-400/90 font-medium">
+                      กำหนดเวลา: {new Date(parseLocalDatetimeToUTC(scheduleDate)).toLocaleString("th-TH")} (เวลาประเทศไทย)
+                    </p>
+                  )}
                 </div>
               )}
             </div>

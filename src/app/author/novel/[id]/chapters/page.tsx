@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ChapterManager from "@/components/author/ChapterManager";
+import { syncScheduledChapters, isChapterPublished } from "@/lib/utils/chapterPublish";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,9 @@ export default async function Page({ params }: PageProps) {
     redirect("/author/dashboard");
   }
 
+  // Ensure scheduled chapters that reached their time are updated in DB
+  await syncScheduledChapters(supabase);
+
   // Fetch all chapters of this novel
   const { data: chaptersData } = await supabase
     .from("chapter")
@@ -67,15 +71,18 @@ export default async function Page({ params }: PageProps) {
     .eq("novel_id", nid)
     .order("chapter_no", { ascending: true });
 
-  const chapters = (chaptersData || []).map((c: any) => ({
-    chapter_id: c.chapter_id,
-    chapter_no: c.chapter_no,
-    chapter_title: c.chapter_title,
-    status: c.status as "draft" | "published" | "scheduled",
-    published_at: c.published_at,
-    scheduled_at: c.scheduled_at,
-    view_count: c.view_count || 0,
-  }));
+  const chapters = (chaptersData || []).map((c: any) => {
+    const isPublished = isChapterPublished(c);
+    return {
+      chapter_id: c.chapter_id,
+      chapter_no: c.chapter_no,
+      chapter_title: c.chapter_title,
+      status: (isPublished ? "published" : c.status) as "draft" | "published" | "scheduled",
+      published_at: isPublished ? (c.published_at || c.scheduled_at) : c.published_at,
+      scheduled_at: c.scheduled_at,
+      view_count: c.view_count || 0,
+    };
+  });
 
   return (
     <>

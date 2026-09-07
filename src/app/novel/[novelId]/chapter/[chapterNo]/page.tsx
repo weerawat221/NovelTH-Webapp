@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import type { Chapter, ChapterListItem } from "@/types/novel";
 import ChapterReader from "@/components/reader/ChapterReader";
+import { syncScheduledChapters, isChapterPublished } from "@/lib/utils/chapterPublish";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,9 @@ export default async function ChapterPage({ params }: PageProps) {
   if (isNaN(nid) || isNaN(cno)) notFound();
 
   const supabase = await createClient();
+
+  // Ensure scheduled chapters that reached their time are updated in DB
+  await syncScheduledChapters(supabase);
 
   // 1. Fetch the current chapter with novel & author info
   const { data: chapterData, error: chapterError } = await supabase
@@ -110,23 +114,31 @@ export default async function ChapterPage({ params }: PageProps) {
     }
   }
 
-  // Block draft / scheduled chapters for normal readers
-  if (chapterData.status !== "published" && !isNovelAuthor && !isSystemAdmin) {
+  const isPublished = isChapterPublished(chapterData);
+
+  // Block draft / scheduled chapters for normal readers if not yet published
+  if (!isPublished && !isNovelAuthor && !isSystemAdmin) {
     notFound();
   }
 
   // 2. Fetch all chapters of this novel (lightweight)
   const { data: allChapters } = await supabase
     .from("chapter")
-    .select("chapter_id, chapter_no, chapter_title, status, scheduled_at")
+    .select("chapter_id, chapter_no, chapter_title, status, scheduled_at, published_at")
     .eq("novel_id", nid)
     .order("chapter_no", { ascending: true });
 
   const rawAllChapters = allChapters || [];
-  const chapters: ChapterListItem[] = rawAllChapters.filter((c: any) => {
-    if (isNovelAuthor || isSystemAdmin) return true;
-    return c.status === "published";
-  });
+  const chapters: ChapterListItem[] = rawAllChapters
+    .filter((c: any) => {
+      if (isNovelAuthor || isSystemAdmin) return true;
+      return isChapterPublished(c);
+    })
+    .map((c: any) => ({
+      ...c,
+      published_at: c.published_at || c.scheduled_at || "",
+      status: isChapterPublished(c) ? "published" : c.status,
+    }));
 
   // 3. Determine prev/next
   const currentIdx = chapters.findIndex((c) => c.chapter_no === cno);
