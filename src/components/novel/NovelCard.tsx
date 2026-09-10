@@ -22,6 +22,7 @@ const NEW_THRESHOLD_DAYS = 30;
 
 interface NovelCardProps {
   novel: NovelWithDetails;
+  isCompleted?: boolean;
 }
 
 function isNew(createdAt: string): boolean {
@@ -32,7 +33,7 @@ function isNew(createdAt: string): boolean {
   return diffDays <= NEW_THRESHOLD_DAYS;
 }
 
-export default function NovelCard({ novel }: NovelCardProps) {
+export default function NovelCard({ novel, isCompleted = false }: NovelCardProps) {
   const router = useRouter();
   const gradientIdx = (novel.novel_id - 1) % placeholderGradients.length;
   const gradient = placeholderGradients[gradientIdx];
@@ -48,18 +49,32 @@ export default function NovelCard({ novel }: NovelCardProps) {
       className="group/card block flex-shrink-0 w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(20%-10px)] lg:w-[calc(16.666%-10px)] cursor-pointer"
     >
       {/* ─── Cover image ─── */}
-      <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface transition-all duration-300 group-hover/card:scale-[1.03] group-hover/card:shadow-xl">
+      <div
+        className={`relative aspect-[2/3] rounded-xl overflow-hidden bg-surface transition-all duration-300 group-hover/card:scale-[1.03] group-hover/card:shadow-xl ${
+          isCompleted
+            ? "ring-2 ring-amber-400/50 dark:ring-amber-400/40 shadow-[0_0_14px_rgba(251,191,36,0.25)] group-hover/card:ring-amber-400/80 group-hover/card:shadow-[0_0_20px_rgba(251,191,36,0.45)]"
+            : ""
+        }`}
+      >
         {novel.cover_image ? (
           <img
             src={novel.cover_image}
             alt={novel.novel_name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover/card:scale-105"
+            className={`w-full h-full object-cover transition-all duration-300 group-hover/card:scale-105 ${
+              isCompleted
+                ? "opacity-80 brightness-[0.92] group-hover/card:opacity-100 group-hover/card:brightness-100"
+                : ""
+            }`}
             loading="lazy"
           />
         ) : (
           /* Styled placeholder */
           <div
-            className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center p-3 text-center transition-transform duration-300 group-hover/card:scale-105`}
+            className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center p-3 text-center transition-all duration-300 group-hover/card:scale-105 ${
+              isCompleted
+                ? "opacity-80 brightness-[0.92] group-hover/card:opacity-100 group-hover/card:brightness-100"
+                : ""
+            }`}
           >
             <span className="text-white/90 text-xs font-medium leading-tight line-clamp-2">
               {novel.novel_name}

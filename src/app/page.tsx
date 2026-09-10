@@ -12,6 +12,8 @@ import { NovelSectionSkeleton } from "@/components/novel/NovelCardSkeleton";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFire, faBolt, faBook } from "@fortawesome/free-solid-svg-icons";
 
+export const dynamic = "force-dynamic";
+
 // ─── Data fetching ───
 
 async function fetchNovelsWithDetails(): Promise<NovelWithDetails[]> {
@@ -74,14 +76,33 @@ async function fetchTopReaders(): Promise<TopReader[]> {
   return (data as TopReader[]) ?? [];
 }
 
+async function fetchCompletedNovelIds(): Promise<Set<number>> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return new Set();
+
+    const { data, error } = await supabase.rpc("get_my_completed_novels");
+    if (error) {
+      console.error("Error fetching completed novels:", error);
+      return new Set();
+    }
+    return new Set((data ?? []).map((r: { novel_id: number | string }) => Number(r.novel_id)));
+  } catch (err) {
+    console.error("Error fetching completed novels:", err);
+    return new Set();
+  }
+}
+
 // ─── Novel sections (async server component) ───
 
 async function NovelSections() {
-  const [novels, categories, topAuthors, topReaders] = await Promise.all([
+  const [novels, categories, topAuthors, topReaders, completedNovelIds] = await Promise.all([
     fetchNovelsWithDetails(),
     fetchCategories(),
     fetchTopAuthors(),
     fetchTopReaders(),
+    fetchCompletedNovelIds(),
   ]);
 
   // Section 1: Latest novels (all, sorted by newest)
@@ -106,6 +127,7 @@ async function NovelSections() {
         title="นิยายยอดนิยม"
         icon={<FontAwesomeIcon icon={faFire} className="text-orange-500 text-base" />}
         novels={popularNovels}
+        completedNovelIds={completedNovelIds}
         viewAllHref="/novels?sort=popular"
       />
 
@@ -127,6 +149,7 @@ async function NovelSections() {
         title="มาใหม่"
         icon={<FontAwesomeIcon icon={faBolt} className="text-amber-400 text-base" />}
         novels={latestNovels}
+        completedNovelIds={completedNovelIds}
         viewAllHref="/novels?sort=latest"
       />
 
@@ -143,6 +166,7 @@ async function NovelSections() {
               title={category.category_name}
               icon={<FontAwesomeIcon icon={faBook} className="text-accent text-sm" />}
               novels={categoryNovels}
+              completedNovelIds={completedNovelIds}
               viewAllHref={`/novels?category=${category.category_id}`}
             />
           </div>

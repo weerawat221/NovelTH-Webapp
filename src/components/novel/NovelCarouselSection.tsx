@@ -10,6 +10,7 @@ interface NovelCarouselSectionProps {
   icon?: React.ReactNode;
   novels: NovelWithDetails[];
   viewAllHref?: string;
+  completedNovelIds?: Set<number> | number[];
 }
 
 export default function NovelCarouselSection({
@@ -17,6 +18,7 @@ export default function NovelCarouselSection({
   icon,
   novels,
   viewAllHref,
+  completedNovelIds,
 }: NovelCarouselSectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -78,9 +80,21 @@ export default function NovelCarouselSection({
             ref={scrollRef}
             className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-2.5 px-0.5"
           >
-            {novels.map((novel) => (
-              <NovelCard key={novel.novel_id} novel={novel} />
-            ))}
+            {novels.map((novel) => {
+              const isCompleted =
+                completedNovelIds instanceof Set
+                  ? completedNovelIds.has(novel.novel_id)
+                  : Array.isArray(completedNovelIds)
+                  ? completedNovelIds.includes(novel.novel_id)
+                  : false;
+              return (
+                <NovelCard
+                  key={novel.novel_id}
+                  novel={novel}
+                  isCompleted={isCompleted}
+                />
+              );
+            })}
           </div>
 
           {/* ─── Scroll arrows (desktop) ─── */}
