@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { checkProfanity } from "@/lib/badwords";
+import { censorBadWords } from "@/lib/badwords";
 
 interface RouteParams {
   params: Promise<{
@@ -105,16 +105,6 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
-    if (hasTextUpdate) {
-      const profanity = await checkProfanity(comment_text);
-      if (profanity.hasBadWords) {
-        return NextResponse.json(
-          { error: profanity.message || "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ" },
-          { status: 400 }
-        );
-      }
-    }
-
     const supabase = await createClient();
 
     // 1. Authenticate user
@@ -165,7 +155,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     // 5. Build update object
     const updateData: Record<string, any> = {};
     if (hasStatusUpdate) updateData.status = status;
-    if (hasTextUpdate) updateData.comment_text = comment_text.trim();
+    if (hasTextUpdate) updateData.comment_text = censorBadWords(comment_text.trim());
     if (hasSpoilerUpdate) updateData.is_spoiler = is_spoiler;
 
     // 6. Update in database

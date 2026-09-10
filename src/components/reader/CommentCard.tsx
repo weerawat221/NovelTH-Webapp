@@ -6,8 +6,6 @@ import { relativeTime } from "@/lib/utils/relativeTime";
 import type { CommentWithUser, ReadingTheme } from "@/types/novel";
 import UserLink from "@/components/common/UserLink";
 import AuthorLink from "@/components/common/AuthorLink";
-import { toast } from "sonner";
-import { checkProfanity } from "@/lib/badwords";
 
 const MAX_COMMENT_LENGTH = 1000;
 
@@ -112,11 +110,6 @@ export default function CommentCard({
 
   const handleSaveEdit = async () => {
     if (!onEdit || !editText.trim()) return;
-    const profanity = await checkProfanity(editText);
-    if (profanity.hasBadWords) {
-      toast.error(profanity.message || "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ");
-      return;
-    }
 
     setEditSaving(true);
     const success = await onEdit(comment.comment_id, editText.trim(), editSpoiler);

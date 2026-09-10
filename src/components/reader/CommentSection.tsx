@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import type { CommentWithUser, ReadingTheme } from "@/types/novel";
 import CommentCard from "./CommentCard";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import { checkProfanity } from "@/lib/badwords";
+import { censorBadWords } from "@/lib/badwords";
 
 const COMMENTS_PER_PAGE = 4;
 const MAX_COMMENT_LENGTH = 1000;
@@ -325,17 +325,13 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
 
   // Edit comment (Owner action)
   const handleEditComment = async (commentId: number, newText: string, isSpoiler: boolean): Promise<boolean> => {
-    const profanity = await checkProfanity(newText);
-    if (profanity.hasBadWords) {
-      toast.error(profanity.message || "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ");
-      return false;
-    }
+    const censoredText = censorBadWords(newText.trim());
 
     try {
       const res = await fetch(`/api/comments/${commentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comment_text: newText, is_spoiler: isSpoiler }),
+        body: JSON.stringify({ comment_text: censoredText, is_spoiler: isSpoiler }),
       });
 
       const data = await res.json();
@@ -448,16 +444,11 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
     }
     if (!commentText.trim() || !dbUserId) return;
 
-    const profanity = await checkProfanity(commentText);
-    if (profanity.hasBadWords) {
-      toast.error(profanity.message || "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ");
-      return;
-    }
-
     setSubmitting(true);
+    const censoredText = censorBadWords(commentText.trim());
     const insertData: any = {
       chapter_id: chapterId,
-      comment_text: commentText.trim(),
+      comment_text: censoredText,
       is_spoiler: isSpoiler,
       commenter_type: commenterType,
     };
@@ -493,17 +484,12 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
     }
     if (!replyText.trim() || !dbUserId) return;
 
-    const profanity = await checkProfanity(replyText);
-    if (profanity.hasBadWords) {
-      toast.error(profanity.message || "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ");
-      return;
-    }
-
     setReplySubmitting(true);
+    const censoredText = censorBadWords(replyText.trim());
     const insertData: any = {
       chapter_id: chapterId,
       parent_comment_id: parentId,
-      comment_text: replyText.trim(),
+      comment_text: censoredText,
       is_spoiler: replySpoiler,
       commenter_type: commenterType,
     };

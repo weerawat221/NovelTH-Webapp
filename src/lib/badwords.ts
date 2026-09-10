@@ -1,6 +1,7 @@
-import { scanBadWords, addBadWords } from "@sit-sandbox/thai-bad-words";
+import { getBadWords, addBadWords } from "@sit-sandbox/thai-bad-words";
 
 let isInitialized = false;
+let badWordsRegex: RegExp | null = null;
 
 const ENGLISH_BAD_WORDS = [
   "fuck",
@@ -42,61 +43,69 @@ const EXTRA_THAI_BAD_WORDS = [
   "กวนส้นตีน",
 ];
 
-const SHORT_ENGLISH_REGEX = /\b(ass|dick|cock|tit|tits|crap|twat)\b/i;
+const IGNORE_WORDS = [
+  "หีบ",
+  "สัสดี",
+  "หน้าหีบ",
+  "ตด",
+  "กะหรี่ปั๊บ",
+  "บ้าน",
+];
+
+const SHORT_ENGLISH_REGEX = /\b(ass|dick|cock|tit|tits|crap|twat)\b/gi;
 
 function initBadWords() {
-  if (isInitialized) return;
+  if (isInitialized && badWordsRegex) return;
+
   try {
     addBadWords([...ENGLISH_BAD_WORDS, ...EXTRA_THAI_BAD_WORDS]);
   } catch (err) {
     console.error("Failed to add custom bad words:", err);
   }
+
+  const allWords = Array.from(new Set(getBadWords())).filter((w) => w && w.length > 0);
+  allWords.sort((a, b) => b.length - a.length);
+
+  badWordsRegex = new RegExp(
+    allWords.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
+    "gi"
+  );
+
   isInitialized = true;
 }
 
-export interface ProfanityCheckResult {
-  hasBadWords: boolean;
-  detectedWord?: string;
-  message?: string;
-}
-
 /**
- * Checks text for inappropriate Thai and English words using @sit-sandbox/thai-bad-words
- * combined with additional English/Thai profanity filters.
+ * Censors bad words in Thai and English by replacing each character with '*'.
+ * Preserves safe words from the ignore list (e.g. กะหรี่ปั๊บ, หีบ).
  */
-export async function checkProfanity(text: string): Promise<ProfanityCheckResult> {
-  if (!text || !text.trim()) {
-    return { hasBadWords: false };
-  }
+export function censorBadWords(text: string): string {
+  if (!text) return text;
 
   initBadWords();
 
-  // 1. Check Thai & primary English bad words via @sit-sandbox/thai-bad-words
-  try {
-    await scanBadWords(text);
-  } catch (err: any) {
-    const errorMsg: string = err?.message || "";
-    // Library format: "Bad words detected! Found: xxx"
-    const match = errorMsg.match(/Found:\s*(.+)$/i);
-    const word = match ? match[1].trim() : undefined;
-    return {
-      hasBadWords: true,
-      detectedWord: word,
-      message: word
-        ? `พบคำไม่เหมาะสมในข้อความ ("${word}") กรุณาใช้ถ้อยคำที่สุภาพ`
-        : "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ",
-    };
-  }
+  // 1. Protect words in the ignore list
+  const placeholders: { token: string; word: string }[] = [];
+  let protectedText = text;
 
-  // 2. Check short English words with word boundary to prevent false positives (e.g. class, classic, glass)
-  const shortMatch = text.match(SHORT_ENGLISH_REGEX);
-  if (shortMatch) {
-    return {
-      hasBadWords: true,
-      detectedWord: shortMatch[0],
-      message: `พบคำไม่เหมาะสมในข้อความ ("${shortMatch[0]}") กรุณาใช้ถ้อยคำที่สุภาพ`,
-    };
-  }
+  IGNORE_WORDS.forEach((word, idx) => {
+    if (protectedText.includes(word)) {
+      const token = `___IGNORE_TOKEN_${idx}___`;
+      placeholders.push({ token, word });
+      protectedText = protectedText.split(word).join(token);
+    }
+  });
 
-  return { hasBadWords: false };
+  // 2. Replace matched bad words with '*' for each character
+  let result = protectedText;
+  if (badWordsRegex) {
+    result = result.replace(badWordsRegex, (match) => "*".repeat(match.length));
+  }
+  result = result.replace(SHORT_ENGLISH_REGEX, (match) => "*".repeat(match.length));
+
+  // 3. Restore protected words
+  placeholders.forEach(({ token, word }) => {
+    result = result.split(token).join(word);
+  });
+
+  return result;
 }
