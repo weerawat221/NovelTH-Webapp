@@ -1,11 +1,48 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { Trophy, Award, Crown, Eye, BookOpen, Sparkles, ChevronRight, User } from "lucide-react";
+import { Trophy, Award, Crown, Eye, BookOpen, Sparkles, ChevronRight } from "lucide-react";
 import type { TopAuthor, TopReader } from "@/types/novel";
 
 interface HomeLeaderboardProps {
   topAuthors: TopAuthor[];
   topReaders: TopReader[];
+}
+
+function LeaderboardAvatar({
+  src,
+  alt,
+  fallbackText,
+  hoverBorderClass,
+}: {
+  src?: string | null;
+  alt: string;
+  fallbackText: string;
+  hoverBorderClass: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div
+      className={`relative h-11 w-11 shrink-0 rounded-2xl overflow-hidden bg-[#24201d] border border-white/10 ${hoverBorderClass} transition-colors flex items-center justify-center`}
+    >
+      {src && !hasError ? (
+        <img
+          src={src}
+          alt={alt}
+          onError={() => setHasError(true)}
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="h-full w-full flex items-center justify-center text-white/70 bg-gradient-to-br from-[#2f2925] to-[#1c1815] font-bold text-sm select-none">
+          {fallbackText.trim() ? fallbackText.trim().charAt(0).toUpperCase() : "?"}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function HomeLeaderboard({
@@ -87,21 +124,12 @@ export default function HomeLeaderboard({
                           </div>
 
                           {/* Avatar */}
-                          <div className="relative h-11 w-11 shrink-0 rounded-2xl overflow-hidden bg-[#24201d] border border-white/10 group-hover:border-amber-500/40 transition-colors">
-                            {author.profile_image ? (
-                              <Image
-                                src={author.profile_image}
-                                alt={author.pen_name}
-                                fill
-                                sizes="44px"
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center text-white/50 bg-gradient-to-br from-[#2a2522] to-[#1f1b19] font-bold text-sm">
-                                {author.pen_name.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                          </div>
+                          <LeaderboardAvatar
+                            src={author.profile_image}
+                            alt={author.pen_name}
+                            fallbackText={author.pen_name}
+                            hoverBorderClass="group-hover:border-amber-500/40"
+                          />
 
                           {/* Info */}
                           <div className="min-w-0">
@@ -187,21 +215,12 @@ export default function HomeLeaderboard({
                           </div>
 
                           {/* Avatar */}
-                          <div className="relative h-11 w-11 shrink-0 rounded-2xl overflow-hidden bg-[#24201d] border border-white/10 group-hover:border-emerald-500/40 transition-colors">
-                            {reader.profile_image ? (
-                              <Image
-                                src={reader.profile_image}
-                                alt={displayName}
-                                fill
-                                sizes="44px"
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center text-white/50 bg-gradient-to-br from-[#2a2522] to-[#1f1b19] font-bold text-sm">
-                                {displayName.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                          </div>
+                          <LeaderboardAvatar
+                            src={reader.profile_image}
+                            alt={displayName}
+                            fallbackText={displayName}
+                            hoverBorderClass="group-hover:border-emerald-500/40"
+                          />
 
                           {/* Info */}
                           <div className="min-w-0">
