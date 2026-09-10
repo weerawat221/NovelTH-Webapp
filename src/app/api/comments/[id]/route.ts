@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkProfanity } from "@/lib/badwords";
 
 interface RouteParams {
   params: Promise<{
@@ -102,6 +103,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     if (!hasStatusUpdate && !hasTextUpdate && !hasSpoilerUpdate) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
+    if (hasTextUpdate) {
+      const profanity = await checkProfanity(comment_text);
+      if (profanity.hasBadWords) {
+        return NextResponse.json(
+          { error: profanity.message || "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ" },
+          { status: 400 }
+        );
+      }
     }
 
     const supabase = await createClient();

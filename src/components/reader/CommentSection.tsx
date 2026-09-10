@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { CommentWithUser, ReadingTheme } from "@/types/novel";
 import CommentCard from "./CommentCard";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { checkProfanity } from "@/lib/badwords";
 
 const COMMENTS_PER_PAGE = 4;
 const MAX_COMMENT_LENGTH = 1000;
@@ -324,6 +325,12 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
 
   // Edit comment (Owner action)
   const handleEditComment = async (commentId: number, newText: string, isSpoiler: boolean): Promise<boolean> => {
+    const profanity = await checkProfanity(newText);
+    if (profanity.hasBadWords) {
+      toast.error(profanity.message || "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ");
+      return false;
+    }
+
     try {
       const res = await fetch(`/api/comments/${commentId}`, {
         method: "PATCH",
@@ -441,6 +448,12 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
     }
     if (!commentText.trim() || !dbUserId) return;
 
+    const profanity = await checkProfanity(commentText);
+    if (profanity.hasBadWords) {
+      toast.error(profanity.message || "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ");
+      return;
+    }
+
     setSubmitting(true);
     const insertData: any = {
       chapter_id: chapterId,
@@ -479,6 +492,12 @@ export default function CommentSection({ chapterId, theme = "dark", novelAuthorI
       return;
     }
     if (!replyText.trim() || !dbUserId) return;
+
+    const profanity = await checkProfanity(replyText);
+    if (profanity.hasBadWords) {
+      toast.error(profanity.message || "พบคำไม่เหมาะสมในข้อความ กรุณาใช้ถ้อยคำที่สุภาพ");
+      return;
+    }
 
     setReplySubmitting(true);
     const insertData: any = {
