@@ -24,6 +24,7 @@ interface NovelDetailPageProps {
   chapters: ChapterListItem[];
   initialFavorited?: boolean;
   lastReadChapterNo?: number | null;
+  readChapterIds?: number[];
 }
 
 function formatThaiDate(dateStr: string): string {
@@ -44,7 +45,9 @@ export default function NovelDetailPage({
   chapters,
   initialFavorited = false,
   lastReadChapterNo = null,
+  readChapterIds = [],
 }: NovelDetailPageProps) {
+  const readChapterSet = new Set(readChapterIds);
   const gradientIdx = (novel.novel_id - 1) % placeholderGradients.length;
   const gradient = placeholderGradients[gradientIdx];
   const firstChapterNo = chapters.length > 0 ? chapters[0].chapter_no : null;
@@ -247,27 +250,36 @@ export default function NovelDetailPage({
 
           {chapters.length > 0 ? (
             <div className="bg-surface/30 backdrop-blur-sm rounded-2xl border border-border/40 overflow-hidden divide-y divide-border/20">
-              {chapters.map((chapter) => (
-                <Link
-                  key={chapter.chapter_id}
-                  href={`/novel/${novel.novel_id}/chapter/${chapter.chapter_no}`}
-                  className="group flex items-center justify-between p-4 hover:bg-surface-hover/50 transition-colors duration-200"
-                >
-                  <div className="flex-1 pr-4">
-                    <span className="text-sm font-semibold text-foreground group-hover:text-accent transition-colors duration-200 line-clamp-1">
-                      ตอนที่ {chapter.chapter_no} {chapter.chapter_title ? `: ${chapter.chapter_title}` : ""}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 shrink-0 text-xs text-muted">
-                    {chapter.published_at && (
-                      <span className="hidden sm:inline">
-                        {formatThaiDate(chapter.published_at)}
+              {chapters.map((chapter) => {
+                const isRead = readChapterSet.has(chapter.chapter_id);
+                return (
+                  <Link
+                    key={chapter.chapter_id}
+                    href={`/novel/${novel.novel_id}/chapter/${chapter.chapter_no}`}
+                    className="group flex items-center justify-between p-4 hover:bg-surface-hover/50 transition-colors duration-200"
+                  >
+                    <div className="flex-1 pr-4">
+                      <span
+                        className={`text-sm transition-colors duration-200 line-clamp-1 ${
+                          isRead
+                            ? "text-muted font-normal group-hover:text-accent"
+                            : "text-foreground font-semibold group-hover:text-accent"
+                        }`}
+                      >
+                        ตอนที่ {chapter.chapter_no} {chapter.chapter_title ? `: ${chapter.chapter_title}` : ""}
                       </span>
-                    )}
-                    <ChevronRight className="h-4 w-4 text-muted/40 group-hover:text-accent group-hover:translate-x-1 transition-all duration-200" />
-                  </div>
-                </Link>
-              ))}
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0 text-xs text-muted">
+                      {chapter.published_at && (
+                        <span className="hidden sm:inline">
+                          {formatThaiDate(chapter.published_at)}
+                        </span>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-muted/40 group-hover:text-accent group-hover:translate-x-1 transition-all duration-200" />
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 border border-dashed border-border/60 rounded-2xl bg-surface/10">

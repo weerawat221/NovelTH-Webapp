@@ -117,6 +117,7 @@ export default async function Page({ params }: PageProps) {
 
   let initialFavorited = false;
   let lastReadChapterNo: number | null = null;
+  let readChapterIds: number[] = [];
 
   if (user) {
     // Get corresponding public.users.user_id
@@ -145,12 +146,11 @@ export default async function Page({ params }: PageProps) {
           .select("chapter_id, read_date")
           .eq("user_id", userData.user_id)
           .in("chapter_id", chapterIds)
-          .order("read_date", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .order("read_date", { ascending: false });
 
-        if (historyData) {
-          const matched = chapters.find((c) => c.chapter_id === historyData.chapter_id);
+        if (historyData && historyData.length > 0) {
+          readChapterIds = historyData.map((h: any) => h.chapter_id);
+          const matched = chapters.find((c) => c.chapter_id === historyData[0].chapter_id);
           if (matched) {
             lastReadChapterNo = matched.chapter_no;
           }
@@ -169,6 +169,7 @@ export default async function Page({ params }: PageProps) {
           chapters={chapters}
           initialFavorited={initialFavorited}
           lastReadChapterNo={lastReadChapterNo}
+          readChapterIds={readChapterIds}
         />
       </main>
       <Footer />
