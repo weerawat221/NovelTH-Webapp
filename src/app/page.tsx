@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import type { NovelWithDetails, Category } from "@/types/novel";
+import type { NovelWithDetails, Category, TopAuthor, TopReader } from "@/types/novel";
 
 import Header from "@/components/layout/Header";
 import SubNavigation from "@/components/layout/SubNavigation";
 import Footer from "@/components/layout/Footer";
 import HeroCarousel from "@/components/home/HeroCarousel";
 import NovelCarouselSection from "@/components/novel/NovelCarouselSection";
+import HomeLeaderboard from "@/components/home/HomeLeaderboard";
 import { NovelSectionSkeleton } from "@/components/novel/NovelCardSkeleton";
 
 // ─── Data fetching ───
@@ -51,12 +52,34 @@ async function fetchCategories(): Promise<Category[]> {
   return data ?? [];
 }
 
+async function fetchTopAuthors(): Promise<TopAuthor[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_top_authors", { limit_count: 5 });
+  if (error) {
+    console.error("Error fetching top authors:", error);
+    return [];
+  }
+  return (data as TopAuthor[]) ?? [];
+}
+
+async function fetchTopReaders(): Promise<TopReader[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_top_readers", { limit_count: 5 });
+  if (error) {
+    console.error("Error fetching top readers:", error);
+    return [];
+  }
+  return (data as TopReader[]) ?? [];
+}
+
 // ─── Novel sections (async server component) ───
 
 async function NovelSections() {
-  const [novels, categories] = await Promise.all([
+  const [novels, categories, topAuthors, topReaders] = await Promise.all([
     fetchNovelsWithDetails(),
     fetchCategories(),
+    fetchTopAuthors(),
+    fetchTopReaders(),
   ]);
 
   // Section 1: Latest novels (all, sorted by newest)
@@ -82,6 +105,16 @@ async function NovelSections() {
         novels={popularNovels}
         viewAllHref="/novels?sort=popular"
       />
+
+      {/* ─── Leaderboard Section (Top Authors & Readers) ─── */}
+      {(topAuthors.length > 0 || topReaders.length > 0) && (
+        <>
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <hr className="border-border" />
+          </div>
+          <HomeLeaderboard topAuthors={topAuthors} topReaders={topReaders} />
+        </>
+      )}
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <hr className="border-border" />

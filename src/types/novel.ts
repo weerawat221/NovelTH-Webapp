@@ -105,4 +105,21 @@ export interface CommentWithUser {
 // ─── Reading Theme ───
 export type ReadingTheme = "dark" | "light" | "warm";
 
+// ─── Leaderboard Types ───
+export interface TopAuthor {
+  author_id: number;
+  pen_name: string;
+  username: string;
+  profile_image: string | null;
+  total_views: number;
+}
+
+export interface TopReader {
+  user_id: number;
+  username: string;
+  full_name: string | null;
+  profile_image: string | null;
+  chapters_read: number;
+}
+
 
