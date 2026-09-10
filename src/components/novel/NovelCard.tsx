@@ -45,21 +45,21 @@ export default function NovelCard({ novel }: NovelCardProps) {
   return (
     <div
       onClick={handleCardClick}
-      className="group block flex-shrink-0 w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(20%-10px)] lg:w-[calc(16.666%-10px)] cursor-pointer"
+      className="group/card block flex-shrink-0 w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(20%-10px)] lg:w-[calc(16.666%-10px)] cursor-pointer"
     >
       {/* ─── Cover image ─── */}
-      <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface transition-transform duration-300 group-hover:scale-[1.03] group-hover:shadow-xl">
+      <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface transition-all duration-300 group-hover/card:scale-[1.03] group-hover/card:shadow-xl">
         {novel.cover_image ? (
           <img
             src={novel.cover_image}
             alt={novel.novel_name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover/card:scale-105"
             loading="lazy"
           />
         ) : (
           /* Styled placeholder */
           <div
-            className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center p-3 text-center`}
+            className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center p-3 text-center transition-transform duration-300 group-hover/card:scale-105`}
           >
             <span className="text-white/90 text-xs font-medium leading-tight line-clamp-2">
               {novel.novel_name}
@@ -91,11 +91,11 @@ export default function NovelCard({ novel }: NovelCardProps) {
         </span>
 
         {/* ─── Hover overlay ─── */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+        <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/10 transition-colors duration-300" />
       </div>
 
       {/* ─── Title ─── */}
-      <h3 className="mt-1.5 px-1 text-sm font-medium text-foreground line-clamp-1 group-hover:text-accent transition-colors">
+      <h3 className="mt-1.5 px-1 text-sm font-medium text-foreground line-clamp-1 group-hover/card:text-accent transition-colors">
         {novel.novel_name}
       </h3>
 

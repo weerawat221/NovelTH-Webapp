@@ -73,10 +73,10 @@ export default function NovelCarouselSection({
         </div>
 
         {/* ─── Scroll container ─── */}
-        <div className="relative group">
+        <div className="relative group/carousel">
           <div
             ref={scrollRef}
-            className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-1"
+            className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-2.5 px-0.5"
           >
             {novels.map((novel) => (
               <NovelCard key={novel.novel_id} novel={novel} />
@@ -92,7 +92,7 @@ export default function NovelCarouselSection({
                 h-10 w-10 rounded-full bg-surface shadow-lg border border-border
                 text-foreground flex items-center justify-center
                 hover:bg-surface-hover transition-all duration-300
-                opacity-0 group-hover:opacity-100
+                opacity-0 group-hover/carousel:opacity-100
                 hidden md:flex
               "
               aria-label="Scroll left"
@@ -108,7 +108,7 @@ export default function NovelCarouselSection({
                 h-10 w-10 rounded-full bg-surface shadow-lg border border-border
                 text-foreground flex items-center justify-center
                 hover:bg-surface-hover transition-all duration-300
-                opacity-0 group-hover:opacity-100
+                opacity-0 group-hover/carousel:opacity-100
                 hidden md:flex
               "
               aria-label="Scroll right"
