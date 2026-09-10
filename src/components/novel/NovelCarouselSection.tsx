@@ -6,7 +6,7 @@ import type { NovelWithDetails } from "@/types/novel";
 import NovelCard from "./NovelCard";
 
 interface NovelCarouselSectionProps {
-  title: React.ReactNode;
+  title: string;
   icon?: React.ReactNode;
   novels: NovelWithDetails[];
   viewAllHref?: string;
@@ -59,7 +59,7 @@ export default function NovelCarouselSection({
         {/* ─── Section header ─── */}
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            {icon}
+            {icon && <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>}
             <span>{title}</span>
           </h2>
           {viewAllHref && (

@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { NovelWithDetails, Category, TopAuthor, TopReader } from "@/types/novel";
-import { Flame, Sparkles, BookOpen } from "lucide-react";
 
 import Header from "@/components/layout/Header";
 import SubNavigation from "@/components/layout/SubNavigation";
@@ -10,6 +9,8 @@ import HeroCarousel from "@/components/home/HeroCarousel";
 import NovelCarouselSection from "@/components/novel/NovelCarouselSection";
 import HomeLeaderboard from "@/components/home/HomeLeaderboard";
 import { NovelSectionSkeleton } from "@/components/novel/NovelCardSkeleton";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFire, faBolt, faBook } from "@fortawesome/free-solid-svg-icons";
 
 // ─── Data fetching ───
 
@@ -102,8 +103,8 @@ async function NovelSections() {
   return (
     <>
       <NovelCarouselSection
-        icon={<Flame className="h-5 w-5 text-orange-500 fill-orange-500/20" />}
         title="นิยายยอดนิยม"
+        icon={<FontAwesomeIcon icon={faFire} className="text-orange-500 text-base" />}
         novels={popularNovels}
         viewAllHref="/novels?sort=popular"
       />
@@ -123,8 +124,8 @@ async function NovelSections() {
       </div>
 
       <NovelCarouselSection
-        icon={<Sparkles className="h-5 w-5 text-amber-400 fill-amber-400/20" />}
         title="มาใหม่"
+        icon={<FontAwesomeIcon icon={faBolt} className="text-amber-400 text-base" />}
         novels={latestNovels}
         viewAllHref="/novels?sort=latest"
       />
@@ -139,8 +140,8 @@ async function NovelSections() {
               <hr className="border-border" />
             </div>
             <NovelCarouselSection
-              icon={<BookOpen className="h-5 w-5 text-accent" />}
               title={category.category_name}
+              icon={<FontAwesomeIcon icon={faBook} className="text-accent text-sm" />}
               novels={categoryNovels}
               viewAllHref={`/novels?category=${category.category_id}`}
             />
