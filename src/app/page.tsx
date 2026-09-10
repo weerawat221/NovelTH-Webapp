@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { NovelWithDetails, Category, TopAuthor, TopReader } from "@/types/novel";
+import { Flame, Sparkles, BookOpen } from "lucide-react";
 
 import Header from "@/components/layout/Header";
 import SubNavigation from "@/components/layout/SubNavigation";
@@ -101,7 +102,8 @@ async function NovelSections() {
   return (
     <>
       <NovelCarouselSection
-        title="🔥 นิยายยอดนิยม"
+        icon={<Flame className="h-5 w-5 text-orange-500 fill-orange-500/20" />}
+        title="นิยายยอดนิยม"
         novels={popularNovels}
         viewAllHref="/novels?sort=popular"
       />
@@ -121,7 +123,8 @@ async function NovelSections() {
       </div>
 
       <NovelCarouselSection
-        title="🆕 มาใหม่"
+        icon={<Sparkles className="h-5 w-5 text-amber-400 fill-amber-400/20" />}
+        title="มาใหม่"
         novels={latestNovels}
         viewAllHref="/novels?sort=latest"
       />
@@ -136,7 +139,8 @@ async function NovelSections() {
               <hr className="border-border" />
             </div>
             <NovelCarouselSection
-              title={`📚 ${category.category_name}`}
+              icon={<BookOpen className="h-5 w-5 text-accent" />}
+              title={category.category_name}
               novels={categoryNovels}
               viewAllHref={`/novels?category=${category.category_id}`}
             />
