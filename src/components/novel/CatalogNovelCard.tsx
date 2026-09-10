@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { Eye } from "lucide-react";
 import type { NovelWithDetails } from "@/types/novel";
 import FavoriteButton from "@/components/novel/FavoriteButton";

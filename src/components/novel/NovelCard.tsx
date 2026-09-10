@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { Eye } from "lucide-react";
 import type { NovelWithDetails } from "@/types/novel";
 import AuthorLink from "@/components/common/AuthorLink";
