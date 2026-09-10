@@ -50,31 +50,28 @@ export default function NovelCard({ novel, isCompleted = false }: NovelCardProps
     >
       {/* ─── Cover image ─── */}
       <div
-        className={`relative aspect-[2/3] rounded-xl overflow-hidden bg-surface transition-all duration-300 group-hover/card:scale-[1.03] group-hover/card:shadow-xl ${
-          isCompleted
+        className={`relative aspect-[2/3] rounded-xl overflow-hidden bg-surface transition-all duration-300 group-hover/card:scale-[1.03] group-hover/card:shadow-xl ${isCompleted
             ? "ring-2 ring-emerald-500/60 dark:ring-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.35)] group-hover/card:ring-emerald-400 group-hover/card:shadow-[0_0_22px_rgba(16,185,129,0.55)]"
             : ""
-        }`}
+          }`}
       >
         {novel.cover_image ? (
           <img
             src={novel.cover_image}
             alt={novel.novel_name}
-            className={`w-full h-full object-cover transition-all duration-300 group-hover/card:scale-105 ${
-              isCompleted
-                ? "opacity-70 brightness-75 group-hover/card:opacity-100 group-hover/card:brightness-100"
+            className={`w-full h-full object-cover transition-all duration-300 group-hover/card:scale-105 ${isCompleted
+                ? "opacity-40 brightness-75 group-hover/card:opacity-100 group-hover/card:brightness-100"
                 : ""
-            }`}
+              }`}
             loading="lazy"
           />
         ) : (
           /* Styled placeholder */
           <div
-            className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center p-3 text-center transition-all duration-300 group-hover/card:scale-105 ${
-              isCompleted
+            className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center p-3 text-center transition-all duration-300 group-hover/card:scale-105 ${isCompleted
                 ? "opacity-70 brightness-75 group-hover/card:opacity-100 group-hover/card:brightness-100"
                 : ""
-            }`}
+              }`}
           >
             <span className="text-white/90 text-xs font-medium leading-tight line-clamp-2">
               {novel.novel_name}
